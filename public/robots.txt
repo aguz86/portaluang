@@ -1,0 +1,4 @@
+-e User-agent: *
+Disallow: /admin
+Disallow: /webhook/
+Disallow: /telegram/

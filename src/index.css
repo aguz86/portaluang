@@ -1,0 +1,340 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom Scrollbar */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #404040 transparent;
+}
+.custom-scrollbar::-webkit-scrollbar {
+  height: 6px;
+  width: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: #404040;
+  border-radius: 10px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: var(--color-stone-500);
+}
+
+body {
+  font-family: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+}
+
+h1, h2, h3, h4, h5, h6, .font-display {
+  font-family: var(--font-display);
+}
+
+/* ==========================================================================
+   AURALEGGER 10 HIGH-CONTRAST CURATED THEMES
+   All themes are WCAG AA compliant, elegant, and highly readable.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. Warm Amber Dark (Default)
+   -------------------------------------------------------------------------- */
+.theme-amber_dark {
+  background-color: #0a0908 !important;
+  color: #ffffff !important;
+}
+.theme-amber_dark .bg-stone-950 { background-color: #0a0908 !important; color: #ffffff !important; }
+.theme-amber_dark .bg-stone-900 { background-color: #161412 !important; border-color: #292524 !important; color: #ffffff !important; }
+.theme-amber_dark .bg-stone-850, .theme-amber_dark .bg-stone-800 { background-color: #201c19 !important; border-color: #332d29 !important; color: #ffffff !important; }
+.theme-amber_dark .text-stone-100, .theme-amber_dark .text-stone-200 { color: #ffffff !important; }
+.theme-amber_dark .text-stone-300 { color: #e6e3df !important; }
+.theme-amber_dark .text-stone-400 { color: #b8b1a8 !important; }
+.theme-amber_dark .text-stone-500 { color: #8e877e !important; }
+.theme-amber_dark .text-amber-400, .theme-amber_dark .text-amber-300, .theme-amber_dark .text-amber-500 { color: #fbbf24 !important; }
+.theme-amber_dark .bg-amber-500, .theme-amber_dark .bg-amber-400 { background-color: #f59e0b !important; color: #0a0908 !important; font-weight: 700 !important; }
+.theme-amber_dark .border-amber-500, .theme-amber_dark .border-amber-400 { border-color: #f59e0b !important; }
+.theme-amber_dark .bg-emerald-950, .theme-amber_dark .bg-emerald-900 { background-color: #022c22 !important; color: #a7f3d0 !important; border-color: #064e3b !important; }
+.theme-amber_dark .text-emerald-400, .theme-amber_dark .text-emerald-300 { color: #34d399 !important; font-weight: 600 !important; }
+.theme-amber_dark .bg-rose-950, .theme-amber_dark .bg-rose-900 { background-color: #4c0519 !important; color: #fecdd3 !important; border-color: #881337 !important; }
+.theme-amber_dark .text-rose-400, .theme-amber_dark .text-rose-300 { color: #fb7185 !important; font-weight: 600 !important; }
+
+/* --------------------------------------------------------------------------
+   2. Deep Navy Blue (Dominan Biru Navy Elegan)
+   -------------------------------------------------------------------------- */
+.theme-wordpress_blue {
+  background-color: #07152b !important;
+  color: #ffffff !important;
+}
+.theme-wordpress_blue .bg-stone-950 { background-color: #07152b !important; color: #ffffff !important; }
+.theme-wordpress_blue .bg-stone-900 { 
+  background-color: #0c2347 !important; 
+  border-color: #1a3f78 !important; 
+  color: #ffffff !important; 
+  box-shadow: 0 4px 20px -2px rgba(3, 15, 33, 0.6) !important;
+}
+.theme-wordpress_blue .bg-stone-850, .theme-wordpress_blue .bg-stone-800 { 
+  background-color: #133261 !important; 
+  border-color: #245499 !important; 
+  color: #ffffff !important; 
+}
+.theme-wordpress_blue .border-stone-800, .theme-wordpress_blue .border-stone-700 { border-color: #1a3f78 !important; }
+.theme-wordpress_blue .divide-stone-800, .theme-wordpress_blue .divide-stone-800\/60 { border-color: #1a3f78 !important; }
+.theme-wordpress_blue .text-stone-100, .theme-wordpress_blue .text-stone-200 { color: #ffffff !important; }
+.theme-wordpress_blue .text-stone-300 { color: #d5e6fb !important; }
+.theme-wordpress_blue .text-stone-400 { color: #93bae6 !important; }
+.theme-wordpress_blue .text-stone-500 { color: #628cb9 !important; }
+.theme-wordpress_blue .text-amber-400, .theme-wordpress_blue .text-amber-300, .theme-wordpress_blue .text-amber-500 { 
+  color: #38bdf8 !important; 
+  font-weight: 600 !important;
+}
+.theme-wordpress_blue .bg-amber-500, .theme-wordpress_blue .bg-amber-400 { 
+  background-color: #0087be !important; 
+  color: #ffffff !important; 
+  font-weight: 600 !important; 
+  box-shadow: 0 2px 10px rgba(0, 135, 190, 0.4) !important;
+}
+.theme-wordpress_blue .border-amber-500, .theme-wordpress_blue .border-amber-400 { border-color: #0087be !important; }
+.theme-wordpress_blue input, .theme-wordpress_blue select, .theme-wordpress_blue textarea { 
+  background-color: #081a36 !important; 
+  color: #ffffff !important; 
+  border-color: #1a3f78 !important; 
+}
+.theme-wordpress_blue input:focus, .theme-wordpress_blue select:focus, .theme-wordpress_blue textarea:focus {
+  border-color: #0087be !important;
+  box-shadow: 0 0 0 2px rgba(0, 135, 190, 0.4) !important;
+  outline: none !important;
+}
+.theme-wordpress_blue option { background-color: #081a36 !important; color: #ffffff !important; }
+.theme-wordpress_blue .bg-emerald-950, .theme-wordpress_blue .bg-emerald-900 { 
+  background-color: #053b23 !important; 
+  color: #86efac !important; 
+  border-color: #059669 !important; 
+}
+.theme-wordpress_blue .text-emerald-400, .theme-wordpress_blue .text-emerald-300 { 
+  color: #00d084 !important; 
+  font-weight: 600 !important; 
+}
+.theme-wordpress_blue .bg-rose-950, .theme-wordpress_blue .bg-rose-900 { 
+  background-color: #4a1018 !important; 
+  color: #fecdd3 !important; 
+  border-color: #dc2626 !important; 
+}
+.theme-wordpress_blue .text-rose-400, .theme-wordpress_blue .text-rose-300 { 
+  color: #f87171 !important; 
+  font-weight: 600 !important; 
+}
+.theme-wordpress_blue .bg-blue-950 { 
+  background-color: #0d3466 !important; 
+  color: #bae6fd !important; 
+  border-color: #0284c7 !important; 
+}
+
+/* --------------------------------------------------------------------------
+   3. Aurora Finance (Futuristik Glassmorphism)
+   -------------------------------------------------------------------------- */
+.theme-aurora_finance .bg-stone-950 { background-color: #020617 !important; color: #f8fafc !important; }
+.theme-aurora_finance .bg-stone-900 { background-color: rgba(30, 41, 59, 0.7) !important; backdrop-filter: blur(12px) !important; border-color: rgba(14, 165, 233, 0.2) !important; color: #f8fafc !important; box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3) !important; }
+.theme-aurora_finance .bg-stone-850, .theme-aurora_finance .bg-stone-800 { background-color: rgba(15, 23, 42, 0.8) !important; border-color: rgba(14, 165, 233, 0.3) !important; color: #f8fafc !important; }
+.theme-aurora_finance .text-stone-100, .theme-aurora_finance .text-stone-200 { color: #f8fafc !important; }
+.theme-aurora_finance .text-stone-300 { color: #e2e8f0 !important; }
+.theme-aurora_finance .text-stone-400 { color: #94a3b8 !important; }
+.theme-aurora_finance .text-stone-500 { color: #64748b !important; }
+.theme-aurora_finance .text-amber-400, .theme-aurora_finance .text-amber-300 { color: #22d3ee !important; font-weight: 700 !important; text-shadow: 0 0 10px rgba(34, 211, 238, 0.5) !important; }
+.theme-aurora_finance .bg-amber-500, .theme-aurora_finance .bg-amber-400 { background-color: #06b6d4 !important; color: #020617 !important; font-weight: 700 !important; box-shadow: 0 0 15px rgba(6, 182, 212, 0.4) !important; }
+.theme-aurora_finance input, .theme-aurora_finance select, .theme-aurora_finance textarea { background-color: rgba(2, 6, 23, 0.6) !important; color: #f8fafc !important; border-color: rgba(14, 165, 233, 0.3) !important; }
+.theme-aurora_finance option { background-color: #020617 !important; color: #f8fafc !important; }
+
+/* 2. Wealth Elite (Mewah Hitam-Emas) */
+.theme-wealth_elite .bg-stone-950 { background-color: #000000 !important; color: #fbfbfb !important; }
+.theme-wealth_elite .bg-stone-900 { background-color: #111111 !important; border-color: #2a2a2a !important; color: #fbfbfb !important; }
+.theme-wealth_elite .bg-stone-850, .theme-wealth_elite .bg-stone-800 { background-color: #1a1a1a !important; border-color: #333333 !important; color: #fbfbfb !important; }
+.theme-wealth_elite .text-stone-100, .theme-wealth_elite .text-stone-200 { color: #ffffff !important; letter-spacing: 0.02em !important; }
+.theme-wealth_elite .text-stone-300 { color: #d1d5db !important; }
+.theme-wealth_elite .text-stone-400 { color: #9ca3af !important; }
+.theme-wealth_elite .text-stone-500 { color: #6b7280 !important; }
+.theme-wealth_elite .text-amber-400, .theme-wealth_elite .text-amber-300 { color: #fbbf24 !important; font-weight: 400 !important; letter-spacing: 0.05em !important; text-transform: uppercase !important; }
+.theme-wealth_elite .bg-amber-500, .theme-wealth_elite .bg-amber-400 { background-color: #fbbf24 !important; color: #000000 !important; font-weight: 600 !important; }
+.theme-wealth_elite input, .theme-wealth_elite select, .theme-wealth_elite textarea { background-color: #0a0a0a !important; color: #ffffff !important; border-color: #333 !important; }
+.theme-wealth_elite option { background-color: #111 !important; color: #fff !important; }
+
+/* 3. Cyber Matrix (Cyberpunk) */
+.theme-cyber_matrix .bg-stone-950 { background-color: #050505 !important; color: #d4d4d4 !important; }
+.theme-cyber_matrix .bg-stone-900 { background-color: #0a0a0a !important; border-color: #112211 !important; border-bottom: 2px solid #00ff00 !important; color: #d4d4d4 !important; border-radius: 0 !important; }
+.theme-cyber_matrix .bg-stone-850, .theme-cyber_matrix .bg-stone-800 { background-color: #151515 !important; border-color: #224422 !important; color: #d4d4d4 !important; border-radius: 0 !important; }
+.theme-cyber_matrix .text-stone-100, .theme-cyber_matrix .text-stone-200 { color: #00ff00 !important; text-shadow: 0 0 5px rgba(0, 255, 0, 0.4) !important; font-family: monospace !important; }
+.theme-cyber_matrix .text-stone-300 { color: #cccccc !important; }
+.theme-cyber_matrix .text-stone-400 { color: #888888 !important; }
+.theme-cyber_matrix .text-stone-500 { color: #555555 !important; }
+.theme-cyber_matrix .text-amber-400, .theme-cyber_matrix .text-amber-300 { color: #00ff00 !important; font-weight: 800 !important; }
+.theme-cyber_matrix .bg-amber-500, .theme-cyber_matrix .bg-amber-400 { background-color: #00ff00 !important; color: #000000 !important; font-weight: 900 !important; border-radius: 0 !important; font-family: monospace !important; }
+.theme-cyber_matrix input, .theme-cyber_matrix select, .theme-cyber_matrix textarea { background-color: #000000 !important; color: #00ff00 !important; border-color: #00ff00 !important; border-radius: 0 !important; font-family: monospace !important; }
+.theme-cyber_matrix option { background-color: #000 !important; color: #0f0 !important; }
+
+/* 4. Retro Pixel Pink (Pixel Art & Gamifikasi Arcade Pink) */
+.theme-retro_pixel { background-color: #190516 !important; color: #ffffff !important; }
+.theme-retro_pixel .bg-stone-950 { background-color: #190516 !important; color: #ffffff !important; }
+.theme-retro_pixel .bg-stone-900 { 
+  background-color: #2c0a27 !important; 
+  border: 2px solid #631758 !important; 
+  border-bottom: 3px solid #000000 !important; 
+  color: #ffffff !important; 
+  border-radius: 6px !important; 
+  box-shadow: 3px 3px 0 #000000 !important; 
+}
+.theme-retro_pixel .bg-stone-850, .theme-retro_pixel .bg-stone-800 { 
+  background-color: #3d0e37 !important; 
+  border: 2px solid #631758 !important; 
+  color: #ffffff !important; 
+  border-radius: 6px !important; 
+}
+.theme-retro_pixel .border-stone-800, .theme-retro_pixel .border-stone-700 { border-color: #631758 !important; }
+.theme-retro_pixel .divide-stone-800, .theme-retro_pixel .divide-stone-800\/60 { border-color: #4a0f41 !important; }
+.theme-retro_pixel .text-stone-100, .theme-retro_pixel .text-stone-200 { 
+  color: #ffffff !important; 
+  font-family: monospace, 'Courier New', Courier !important; 
+  font-weight: 700 !important; 
+  letter-spacing: 0.02em !important;
+}
+.theme-retro_pixel .text-stone-300 { color: #ffd4ee !important; font-family: monospace, 'Courier New', Courier !important; }
+.theme-retro_pixel .text-stone-400 { color: #f472b6 !important; font-family: monospace, 'Courier New', Courier !important; }
+.theme-retro_pixel .text-stone-500 { color: #db2777 !important; font-family: monospace, 'Courier New', Courier !important; }
+.theme-retro_pixel .text-amber-400, .theme-retro_pixel .text-amber-300 { 
+  color: #ff3399 !important; 
+  font-weight: 900 !important; 
+  font-family: monospace !important; 
+  text-shadow: 0 0 8px rgba(255, 51, 153, 0.5) !important; 
+}
+.theme-retro_pixel .bg-amber-500, .theme-retro_pixel .bg-amber-400 { 
+  background-color: #ff2a85 !important; 
+  color: #ffffff !important; 
+  font-weight: 900 !important; 
+  border: 2px solid #000000 !important; 
+  border-radius: 4px !important; 
+  font-family: monospace !important; 
+  text-transform: uppercase !important; 
+  box-shadow: 3px 3px 0 #000000 !important; 
+}
+.theme-retro_pixel input, .theme-retro_pixel select, .theme-retro_pixel textarea { 
+  background-color: #21051d !important; 
+  color: #ffffff !important; 
+  border: 2px solid #631758 !important; 
+  border-radius: 4px !important; 
+  font-family: monospace !important; 
+}
+.theme-retro_pixel input:focus, .theme-retro_pixel select:focus, .theme-retro_pixel textarea:focus {
+  border-color: #ff3399 !important;
+  box-shadow: 0 0 10px rgba(255, 51, 153, 0.4) !important;
+  outline: none !important;
+}
+.theme-retro_pixel option { background-color: #21051d !important; color: #ffffff !important; }
+.theme-retro_pixel .bg-emerald-950, .theme-retro_pixel .bg-emerald-900 { 
+  background-color: #064e3b !important; 
+  color: #a7f3d0 !important; 
+  border-color: #059669 !important; 
+}
+.theme-retro_pixel .text-emerald-400, .theme-retro_pixel .text-emerald-300 { 
+  color: #00f59b !important; 
+  font-weight: 800 !important; 
+  font-family: monospace !important;
+}
+.theme-retro_pixel .bg-rose-950, .theme-retro_pixel .bg-rose-900 { 
+  background-color: #5c072b !important; 
+  color: #fecdd3 !important; 
+  border-color: #f43f5e !important; 
+}
+.theme-retro_pixel .text-rose-400, .theme-retro_pixel .text-rose-300 { 
+  color: #ff2a85 !important; 
+  font-weight: 800 !important; 
+  font-family: monospace !important;
+}
+.theme-retro_pixel .bg-blue-950 { 
+  background-color: #3b0735 !important; 
+  color: #fbcfe8 !important; 
+  border-color: #db2777 !important; 
+}
+
+
+
+@media print {
+  body *, [class*="theme-"] * {
+    background-color: #ffffff !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    border-color: #d1d5db !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  .text-stone-100, .text-stone-200, .text-stone-300, .text-stone-400, .text-stone-500,
+  .text-amber-400, .text-amber-300, .text-amber-500, .text-emerald-400, .text-rose-400 {
+    color: #111827 !important;
+  }
+
+  .overflow-x-auto, .overflow-y-auto {
+    overflow: visible !important;
+    max-height: none !important;
+  }
+
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    page-break-inside: auto;
+  }
+
+  tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
+  }
+
+  th, td {
+    border: 1px solid #9ca3af !important;
+    padding: 6px 10px !important;
+    color: #000000 !important;
+    background-color: #ffffff !important;
+  }
+
+  thead, th {
+    background-color: #f3f4f6 !important;
+    font-weight: bold !important;
+  }
+}
+
+/* 5. Mono Matrix (Black & White Cyberpunk) */
+.theme-mono_matrix .bg-stone-950 { background-color: #000000 !important; color: #ffffff !important; }
+.theme-mono_matrix .bg-stone-900 { background-color: #0a0a0a !important; border-color: #333333 !important; border-bottom: 2px solid #ffffff !important; color: #ffffff !important; border-radius: 0 !important; }
+.theme-mono_matrix .bg-stone-850, .theme-mono_matrix .bg-stone-800 { background-color: #111111 !important; border-color: #444444 !important; color: #ffffff !important; border-radius: 0 !important; }
+.theme-mono_matrix .text-stone-100, .theme-mono_matrix .text-stone-200 { color: #ffffff !important; text-shadow: 0 0 5px rgba(255, 255, 255, 0.4) !important; font-family: monospace !important; }
+.theme-mono_matrix .text-stone-300 { color: #dddddd !important; }
+.theme-mono_matrix .text-stone-400 { color: #aaaaaa !important; }
+.theme-mono_matrix .text-stone-500 { color: #777777 !important; }
+.theme-mono_matrix .text-amber-400, .theme-mono_matrix .text-amber-300 { color: #ffffff !important; font-weight: 800 !important; }
+.theme-mono_matrix .bg-amber-500, .theme-mono_matrix .bg-amber-400 { background-color: #ffffff !important; color: #000000 !important; font-weight: 900 !important; border-radius: 0 !important; font-family: monospace !important; }
+.theme-mono_matrix input, .theme-mono_matrix select, .theme-mono_matrix textarea { background-color: #000000 !important; color: #ffffff !important; border-color: #ffffff !important; border-radius: 0 !important; font-family: monospace !important; }
+.theme-mono_matrix option { background-color: #000 !important; color: #fff !important; }
+
+/* --------------------------------------------------------------------------
+   Transactions View Coloring (IN: Green / OUT: Red) for Category & Nominal
+   -------------------------------------------------------------------------- */
+.tx-nominal-income,
+[class*="theme-"] .tx-nominal-income {
+  color: #34d399 !important;
+}
+
+.tx-cat-income,
+[class*="theme-"] .tx-cat-income {
+  background-color: rgba(6, 78, 59, 0.45) !important;
+  color: #34d399 !important;
+  border-color: rgba(16, 185, 129, 0.4) !important;
+}
+
+.tx-nominal-expense,
+[class*="theme-"] .tx-nominal-expense {
+  color: #fb7185 !important;
+}
+
+.tx-cat-expense,
+[class*="theme-"] .tx-cat-expense {
+  background-color: rgba(136, 19, 55, 0.45) !important;
+  color: #fb7185 !important;
+  border-color: rgba(244, 63, 94, 0.4) !important;
+}
+

@@ -1,0 +1,6 @@
+{
+  "name": "Portal Uang",
+  "description": "Interactive local-first personal finance engine featuring zero-based budgeting, net worth tracking, sinking funds, debt payoff lab, bill calendar, searchable transactions, and AI financial insights.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

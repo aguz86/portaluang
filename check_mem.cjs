@@ -1,0 +1,17 @@
+const puppeteer = require('puppeteer');
+(async () => {
+  const browser = await puppeteer.launch({ args: ['--no-sandbox', '--disable-setuid-sandbox'] });
+  const page = await browser.newPage();
+  
+  page.on('console', msg => console.log('PAGE LOG:', msg.text()));
+  
+  await page.goto('http://localhost:3000', { waitUntil: 'networkidle2' });
+  
+  for(let i=0; i<5; i++) {
+    const metrics = await page.metrics();
+    console.log(`Heap used: ${metrics.JSHeapUsedSize / 1024 / 1024} MB`);
+    await new Promise(r => setTimeout(r, 1000));
+  }
+  
+  await browser.close();
+})();

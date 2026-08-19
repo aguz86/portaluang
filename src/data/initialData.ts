@@ -1,0 +1,366 @@
+import { Account, Bill, BudgetCategory, NetWorthSnapshot, PaydayConfig, SinkingFund, Transaction, Investment, NotificationSettings } from '../types';
+
+export const INITIAL_NOTIFICATION_SETTINGS: NotificationSettings = {
+  telegramChatId: '',
+  telegramUsername: '',
+  telegramFirstName: '',
+  telegramLinkedAt: '',
+  telegramEnabled: false,
+  pushEnabled: false,
+  dueReminderDays: 3,
+};
+
+export const INITIAL_INVESTMENTS: Investment[] = [
+  {
+    id: 'inv-1',
+    category: 'saham',
+    name: 'Bank Central Asia',
+    ticker: 'BBCA.JK',
+    quantity: 10,
+    averageBuyPrice: 9000,
+  },
+  {
+    id: 'inv-2',
+    category: 'logam_mulia',
+    name: 'Emas Antam',
+    ticker: 'ANTAM',
+    quantity: 10,
+    averageBuyPrice: 1300000,
+  }
+];
+
+export const INITIAL_ACCOUNTS: Account[] = [
+  {
+    id: 'acc-1',
+    name: 'BCA Rekening Utama',
+    category: 'asset',
+    type: 'checking',
+    balance: 8450000,
+    institution: 'Bank BCA',
+    updatedAt: '2026-07-25',
+  },
+  {
+    id: 'acc-2',
+    name: 'Mandiri Livin Tabungan',
+    category: 'asset',
+    type: 'savings',
+    balance: 25000000,
+    institution: 'Bank Mandiri',
+    apr: 3.5,
+    updatedAt: '2026-07-25',
+  },
+  {
+    id: 'acc-3',
+    name: 'Bibit Reksadana & Saham',
+    category: 'asset',
+    type: 'investment',
+    balance: 45000000,
+    institution: 'Bibit / Stockbit',
+    updatedAt: '2026-07-25',
+  },
+  {
+    id: 'acc-4',
+    name: 'GoPay & Dana E-Wallet',
+    category: 'asset',
+    type: 'cash',
+    balance: 2500000,
+    institution: 'GoTo / Dana',
+    updatedAt: '2026-07-25',
+  },
+  {
+    id: 'acc-5',
+    name: 'Kartu Kredit BCA Everyday',
+    category: 'liability',
+    type: 'credit_card',
+    balance: 3200000,
+    creditLimit: 25000000,
+    apr: 21.0,
+    minPayment: 320000,
+    updatedAt: '2026-07-25',
+  }
+];
+
+export const INITIAL_BUDGET_CATEGORIES: BudgetCategory[] = [
+  // Pemasukan
+  { id: 'cat-inc-1', group: 'Pemasukan', name: 'Gaji Utama', planned: 8500000, icon: 'Briefcase' },
+  { id: 'cat-inc-2', group: 'Pemasukan', name: 'Usaha / Freelance', planned: 2500000, icon: 'Laptop' },
+  
+  // Tagihan Tetap
+  { id: 'cat-fb-1', group: 'Tagihan Tetap', name: 'KPR Rumah / Sewa Kontrakan', planned: 2400000, icon: 'Home' },
+  { id: 'cat-fb-2', group: 'Tagihan Tetap', name: 'Listrik PLN & Air PDAM', planned: 450000, icon: 'Zap' },
+  { id: 'cat-fb-3', group: 'Tagihan Tetap', name: 'Indihome WiFi & Pulsa Paket Data', planned: 350000, icon: 'Wifi' },
+  { id: 'cat-fb-4', group: 'Tagihan Tetap', name: 'BPJS Kesehatan & Asuransi', planned: 320000, icon: 'Shield' },
+  { id: 'cat-fb-6', group: 'Tagihan Tetap', name: 'Langganan Streaming (Netflix, Spotify)', planned: 180000, icon: 'Tv' },
+
+  // Pengeluaran Variabel
+  { id: 'cat-ve-1', group: 'Pengeluaran Variabel', name: 'Belanja Bulanan & Sembako', planned: 2200000, icon: 'ShoppingCart' },
+  { id: 'cat-ve-2', group: 'Pengeluaran Variabel', name: 'Makan Luar & Kopi Kekinian', planned: 1200000, icon: 'Utensils' },
+  { id: 'cat-ve-3', group: 'Pengeluaran Variabel', name: 'Bensin Pertamax & Tol', planned: 600000, icon: 'Fuel' },
+  { id: 'cat-ve-4', group: 'Pengeluaran Variabel', name: 'Perawatan Diri & Skin Care', planned: 400000, icon: 'User' },
+  { id: 'cat-ve-5', group: 'Pengeluaran Variabel', name: 'Hiburan & Rekreasi Akhir Pekan', planned: 500000, icon: 'Smile' },
+
+  // Pos Sinking Fund
+  { id: 'cat-sf-1', group: 'Pos Sinking Fund', name: 'Mudik & Hari Raya Lebaran', planned: 400000, icon: 'Gift' },
+  { id: 'cat-sf-2', group: 'Pos Sinking Fund', name: 'Liburan & Jalan-Jalan', planned: 300000, icon: 'Plane' },
+  { id: 'cat-sf-3', group: 'Pos Sinking Fund', name: 'Servis Motor & Ganti Ban', planned: 150000, icon: 'Wrench' },
+
+  // Pelunasan Hutang
+  { id: 'cat-dp-1', group: 'Pelunasan Hutang', name: 'Pelunasan Ekstra Kartu Kredit', planned: 500000, icon: 'CreditCard' },
+
+  // Tabungan & Investasi
+  { id: 'cat-si-1', group: 'Tabungan & Investasi', name: 'Investasi Reksadana & Saham Bibit', planned: 1000000, icon: 'TrendingUp' },
+  { id: 'cat-si-2', group: 'Tabungan & Investasi', name: 'Top-Up Dana Darurat', planned: 500000, icon: 'PiggyBank' },
+];
+
+export const INITIAL_BILLS: Bill[] = [
+  {
+    id: 'bill-1',
+    name: 'KPR Rumah / Kontrakan',
+    amount: 2400000,
+    dueDate: 1,
+    category: 'KPR Rumah / Sewa Kontrakan',
+    accountId: 'acc-1',
+    isPaid: true,
+    autoPay: true,
+    recurringFrequency: 'monthly',
+  },
+  {
+    id: 'bill-2',
+    name: 'Token Listrik PLN & Air PDAM',
+    amount: 450000,
+    dueDate: 5,
+    category: 'Listrik PLN & Air PDAM',
+    accountId: 'acc-1',
+    isPaid: true,
+    autoPay: false,
+    recurringFrequency: 'monthly',
+  },
+  {
+    id: 'bill-3',
+    name: 'Indihome WiFi Fiber 50Mbps',
+    amount: 330000,
+    dueDate: 10,
+    category: 'Indihome WiFi & Pulsa Paket Data',
+    accountId: 'acc-1',
+    isPaid: true,
+    autoPay: true,
+    recurringFrequency: 'monthly',
+  },
+  {
+    id: 'bill-4',
+    name: 'BPJS Kesehatan Keluarga',
+    amount: 320000,
+    dueDate: 15,
+    category: 'BPJS Kesehatan & Asuransi',
+    accountId: 'acc-1',
+    isPaid: false,
+    autoPay: true,
+    recurringFrequency: 'monthly',
+  },
+  {
+    id: 'bill-6',
+    name: 'Minimum Tagihan Kartu Kredit BCA',
+    amount: 320000,
+    dueDate: 25,
+    category: 'Pelunasan Ekstra Kartu Kredit',
+    accountId: 'acc-1',
+    isPaid: false,
+    autoPay: false,
+    recurringFrequency: 'monthly',
+  }
+];
+
+export const INITIAL_SINKING_FUNDS: SinkingFund[] = [
+  {
+    id: 'sf-1',
+    name: 'Sinking Fund Mudik & Lebaran',
+    targetAmount: 6000000,
+    currentAmount: 3800000,
+    targetDate: '2027-03-20',
+    category: 'Mudik & Hari Raya Lebaran',
+    icon: 'Gift',
+    monthlyContrib: 400000,
+    notes: 'Persiapan tiket mudik, THR orang tua, & konsumsi Lebaran.',
+  },
+  {
+    id: 'sf-2',
+    name: 'Dana Darurat 6 Bulan',
+    targetAmount: 30000000,
+    currentAmount: 22500000,
+    targetDate: '2026-12-31',
+    category: 'Top-Up Dana Darurat',
+    icon: 'ShieldAlert',
+    monthlyContrib: 500000,
+    notes: 'Disimpan di Mandiri Livin Tabungan untuk keamanan finansial.',
+  },
+  {
+    id: 'sf-3',
+    name: 'Servis Motor & Ganti Ban',
+    targetAmount: 1800000,
+    currentAmount: 1100000,
+    targetDate: '2026-11-15',
+    category: 'Servis Motor & Ganti Ban',
+    icon: 'Wrench',
+    monthlyContrib: 150000,
+    notes: 'Servis rutin CVT & ganti ban tubeless depan belakang.',
+  },
+  {
+    id: 'sf-4',
+    name: 'Liburan Bali / Jogja',
+    targetAmount: 4500000,
+    currentAmount: 2200000,
+    targetDate: '2026-12-20',
+    category: 'Liburan & Jalan-Jalan',
+    icon: 'Plane',
+    monthlyContrib: 300000,
+    notes: 'Tiket pesawat & penginapan villa akhir tahun.',
+  }
+];
+
+export const INITIAL_TRANSACTIONS: Transaction[] = [
+  {
+    id: 'tx-1',
+    date: '2026-07-25',
+    amount: 8500000,
+    type: 'income',
+    category: 'Gaji Utama',
+    accountId: 'acc-1',
+    payee: 'PT Teknologi Nusantara',
+    notes: 'Transfer Gaji Bulanan Via BCA',
+    status: 'cleared',
+    tags: ['gaji', 'pemasukan'],
+  },
+  {
+    id: 'tx-2',
+    date: '2026-07-24',
+    amount: 425000,
+    type: 'expense',
+    category: 'Belanja Bulanan & Sembako',
+    accountId: 'acc-1',
+    payee: 'Superindo Supermarket',
+    notes: 'Belanja bahan makanan & perlengkapan mandi bulanan',
+    status: 'cleared',
+    tags: ['sembako', 'groceries'],
+  },
+  {
+    id: 'tx-3',
+    date: '2026-07-22',
+    amount: 150000,
+    type: 'expense',
+    category: 'Bensin Pertamax & Tol',
+    accountId: 'acc-5',
+    payee: 'SPBU Pertamina Pasti Pas',
+    notes: 'Isi full tank Pertamax motor',
+    status: 'cleared',
+    tags: ['bensin', 'kendaraan'],
+  },
+  {
+    id: 'tx-4',
+    date: '2026-07-20',
+    amount: 125000,
+    type: 'expense',
+    category: 'Makan Luar & Kopi Kekinian',
+    accountId: 'acc-4',
+    payee: 'Kopi Kenangan & Solaria',
+    notes: 'Makan siang & kopi bareng teman kantor',
+    status: 'cleared',
+    tags: ['kuliner'],
+  },
+  {
+    id: 'tx-5',
+    date: '2026-07-18',
+    amount: 400000,
+    type: 'sinking_fund',
+    category: 'Mudik & Hari Raya Lebaran',
+    sinkingFundId: 'sf-1',
+    accountId: 'acc-2',
+    payee: 'Setoran Sinking Mudik Lebaran',
+    notes: 'Alokasi rutin bulanan tabungan THR mudik',
+    status: 'cleared',
+    tags: ['sinking_fund', 'mudik'],
+  },
+  {
+    id: 'tx-6',
+    date: '2026-07-15',
+    amount: 1500000,
+    type: 'income',
+    category: 'Usaha / Freelance',
+    accountId: 'acc-1',
+    payee: 'Klien Web Design - Transfer Bank',
+    notes: 'Pembayaran termin pertama pembuatan landing page',
+    status: 'cleared',
+    tags: ['freelance'],
+  },
+  {
+    id: 'tx-7',
+    date: '2026-07-01',
+    amount: 2400000,
+    type: 'expense',
+    category: 'KPR Rumah / Sewa Kontrakan',
+    accountId: 'acc-1',
+    payee: 'Bank BTN Auto-Debet KPR',
+    notes: 'Cicilan KPR Bulan Juli',
+    status: 'cleared',
+    tags: ['kpr', 'tagihan'],
+  },
+  {
+    id: 'tx-8',
+    date: '2026-07-05',
+    amount: 450000,
+    type: 'expense',
+    category: 'Listrik PLN & Air PDAM',
+    accountId: 'acc-1',
+    payee: 'PLN Mobile & PDAM Kota',
+    notes: 'Tagihan listrik token & air bersih',
+    status: 'cleared',
+    tags: ['listrik', 'tagihan'],
+  },
+  {
+    id: 'tx-9',
+    date: '2026-07-10',
+    amount: 500000,
+    type: 'expense',
+    category: 'Pelunasan Ekstra Kartu Kredit',
+    accountId: 'acc-1',
+    payee: 'Pembayaran KK BCA Everyday',
+    notes: 'Pembayaran ekstra pelunasan pokok kartu kredit',
+    status: 'cleared',
+    tags: ['pelunasan_hutang'],
+  },
+  {
+    id: 'tx-10',
+    date: '2026-07-12',
+    amount: 1000000,
+    type: 'transfer',
+    category: 'Investasi Reksadana & Saham Bibit',
+    accountId: 'acc-3',
+    payee: 'Bibit Reksadana Pasar Uang & Index',
+    notes: 'Top up investasi rutin bulanan',
+    status: 'cleared',
+    tags: ['investasi'],
+  }
+];
+
+export const INITIAL_PAYDAY_CONFIG: PaydayConfig = {
+  frequency: 'monthly',
+  nextDate: '2026-08-25',
+  expectedIncome: 8500000,
+  rules: [
+    { categoryId: 'cat-fb-1', categoryName: 'KPR Rumah / Sewa Kontrakan', type: 'fixed', value: 2400000 },
+    { categoryId: 'cat-ve-1', categoryName: 'Belanja Bulanan & Sembako', type: 'fixed', value: 1800000 },
+    { categoryId: 'cat-si-1', categoryName: 'Investasi Reksadana & Saham Bibit', type: 'fixed', value: 1000000 },
+    { categoryId: 'cat-sf-1', categoryName: 'Mudik & Hari Raya Lebaran', type: 'fixed', value: 400000 },
+    { categoryId: 'cat-dp-1', categoryName: 'Pelunasan Ekstra Kartu Kredit', type: 'fixed', value: 500000 },
+    { categoryId: 'cat-si-2', categoryName: 'Top-Up Dana Darurat', type: 'percent', value: 10 },
+  ],
+};
+
+export const INITIAL_NET_WORTH_SNAPSHOTS: NetWorthSnapshot[] = [
+  { id: 'nw-1', date: '2026-02', totalAssets: 62000000, totalLiabilities: 210000000, netWorth: -148000000, notes: 'Awal pencatatan finansial Portal Uang' },
+  { id: 'nw-2', date: '2026-03', totalAssets: 66500000, totalLiabilities: 205000000, netWorth: -138500000 },
+  { id: 'nw-3', date: '2026-04', totalAssets: 71000000, totalLiabilities: 201000000, netWorth: -130000000 },
+  { id: 'nw-4', date: '2026-05', totalAssets: 76200000, totalLiabilities: 198000000, netWorth: -121800000 },
+  { id: 'nw-5', date: '2026-06', totalAssets: 80900000, totalLiabilities: 196000000, netWorth: -115100000 },
+  { id: 'nw-6', date: '2026-07', totalAssets: 80950000, totalLiabilities: 195700000, netWorth: -114750000, notes: 'Penurunan pokok KPR & motor melaju positif!' },
+];
+
