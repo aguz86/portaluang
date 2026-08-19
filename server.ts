@@ -4,7 +4,7 @@ import path from 'path';
 import crypto from 'crypto';
 import { GoogleGenAI } from '@google/genai';
 import { createServer as createViteServer } from 'vite';
-import YahooFinance from 'yahoo-finance2';
+import yahooFinance from 'yahoo-finance2';
 import * as cheerio from 'cheerio';
 import * as OTPAuth from 'otpauth';
 import QRCode from 'qrcode';
@@ -81,7 +81,7 @@ if (process.env.DATABASE_URL) {
 };
 }
 
-const yahooFinance = new YahooFinance();
+
 
 async function startServer() {
   const app = express();
