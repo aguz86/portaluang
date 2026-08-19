@@ -847,7 +847,7 @@ Berikan panduan pelunasan langkah demi langkah yang jelas dengan simulasi matema
         // Fallback to Yahoo Finance calculation if scraping blocked or fails
         if (!lmPrice) {
           if (ticker === 'ANTAM') {
-            const [goldUsd, usdIdr] = await Promise.all([
+            const [goldUsd, usdIdr]: any[] = await Promise.all([
               yahooFinance.quote('GC=F'), // Gold Spot USD/oz
               yahooFinance.quote('IDR=X') // USD to IDR
             ]);
@@ -859,7 +859,7 @@ Berikan panduan pelunasan langkah demi langkah yang jelas dengan simulasi matema
               lmPrice = Math.round(pricePerGramIDR * 1.025);
             }
           } else if (ticker === 'PERAK') {
-            const [silverUsd, usdIdr] = await Promise.all([
+            const [silverUsd, usdIdr]: any[] = await Promise.all([
               yahooFinance.quote('SI=F'), // Silver Futures USD/oz
               yahooFinance.quote('IDR=X') // USD to IDR
             ]);
