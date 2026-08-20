@@ -40,7 +40,7 @@ export const AdminLogin: React.FC = () => {
         setError(data.error || 'Invalid credentials or IP not whitelisted.');
       }
     } catch (err) {
-      setError('Connection failed. Please try again.');
+      setError('Koneksi gagal. Server mungkin sedang down (502). Pastikan Anda sudah mem-push (sync) kode terbaru ke GitHub agar Render melakukan deploy ulang.');
     }
   };
 
