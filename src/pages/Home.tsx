@@ -28,6 +28,75 @@ import {
   Sparkles
 } from "lucide-react";
 
+
+const TypewriterHeadline = ({ appName }: { appName: string }) => {
+  const [displayedText, setDisplayedText] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
+  
+  const fullText1 = "Tinggalkan Spreadsheet Rumit.";
+  const prefix2 = "Kuasai Uang Anda dengan ";
+  const fullText2 = `${prefix2}${appName}.`;
+  const fullText = `${fullText1}\n${fullText2}`;
+  
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    
+    if (isDeleting) {
+      if (displayedText === "") {
+        setIsDeleting(false);
+        timer = setTimeout(() => {}, 500);
+      } else {
+        timer = setTimeout(() => {
+          setDisplayedText(prev => prev.slice(0, -1));
+        }, 20);
+      }
+    } else {
+      if (displayedText === fullText) {
+        timer = setTimeout(() => {
+          setIsDeleting(true);
+        }, 3000);
+      } else {
+        timer = setTimeout(() => {
+          setDisplayedText(fullText.slice(0, displayedText.length + 1));
+        }, 50);
+      }
+    }
+    
+    return () => clearTimeout(timer);
+  }, [displayedText, isDeleting, fullText]);
+
+  const lines = displayedText.split('\n');
+
+  const renderLine2 = (text: string) => {
+    if (text.length <= prefix2.length) {
+      return <span>{text}</span>;
+    } else {
+      const remaining = text.slice(prefix2.length);
+      return (
+        <>
+          <span>{prefix2}</span>
+          <span className="text-amber-400 bg-gradient-to-r from-amber-400 via-amber-300 to-yellow-500 bg-clip-text text-transparent">
+            {remaining}
+          </span>
+        </>
+      );
+    }
+  };
+
+  return (
+    <h1 className="text-3xl sm:text-5xl md:text-6xl font-black text-white tracking-tight mb-4 leading-tight min-h-[90px] sm:min-h-[130px] md:min-h-[170px]">
+      <span className="inline-block">{lines[0]}</span>
+      {lines.length > 1 && (
+        <>
+          <br />
+          {renderLine2(lines[1])}
+        </>
+      )}
+      <span className="inline-block w-[3px] h-[0.9em] bg-amber-400 animate-pulse ml-1 align-middle"></span>
+    </h1>
+  );
+};
+
 export default function Home() {
   const { settings } = useGlobalSettings();
   const [activeCategory, setActiveCategory] = useState<'all' | 'budget' | 'convenience' | 'analytics'>('all');
@@ -172,22 +241,7 @@ export default function Home() {
           </div>
 
           {/* Headline */}
-          <h1 className="text-3xl sm:text-5xl md:text-6xl font-black text-white tracking-tight mb-4 leading-tight">
-            <span className="inline-block">
-              {"Tinggalkan Spreadsheet Rumit.".split("").map((char, i) => (
-                <motion.span
-                  key={i}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ duration: 0.05, delay: i * 0.05 }}
-                >
-                  {char}
-                </motion.span>
-              ))}
-            </span>
-            <br />
-            Kuasai Uang Anda dengan <span className="text-amber-400 bg-gradient-to-r from-amber-400 via-amber-300 to-yellow-500 bg-clip-text text-transparent">{settings.appName}.</span>
-          </h1>
+          <TypewriterHeadline appName={settings.appName} />
 
           {/* Subheading */}
           <p className="text-base sm:text-lg md:text-xl text-stone-300 mb-7 max-w-2xl mx-auto leading-relaxed">
