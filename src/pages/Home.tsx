@@ -29,12 +29,12 @@ import {
 } from "lucide-react";
 
 
-const TypewriterHeadline = ({ appName }: { appName: string }) => {
+const TypewriterHeadline = ({ appName, heroTitle1, heroTitle2Prefix, font }: { appName: string, heroTitle1: string, heroTitle2Prefix: string, font: string }) => {
   const [displayedText, setDisplayedText] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
   
-  const fullText1 = "Tinggalkan Spreadsheet Rumit.";
-  const prefix2 = "Kuasai Uang Anda dengan ";
+  const fullText1 = heroTitle1;
+  const prefix2 = heroTitle2Prefix;
   const fullText2 = `${prefix2}${appName}.`;
   const fullText = `${fullText1}\n${fullText2}`;
   
@@ -84,7 +84,7 @@ const TypewriterHeadline = ({ appName }: { appName: string }) => {
   };
 
   return (
-    <h1 className="text-3xl sm:text-5xl md:text-6xl font-black text-white tracking-tight mb-4 leading-tight min-h-[90px] sm:min-h-[130px] md:min-h-[170px]">
+    <h1 className="text-3xl sm:text-5xl md:text-6xl font-black text-white tracking-tight mb-4 leading-tight min-h-[90px] sm:min-h-[130px] md:min-h-[170px]" style={{ fontFamily: font }}>
       <span className="inline-block">{lines[0]}</span>
       {lines.length > 1 && (
         <>
@@ -241,12 +241,21 @@ export default function Home() {
           </div>
 
           {/* Headline */}
-          <TypewriterHeadline appName={settings.appName} />
+          <TypewriterHeadline 
+            appName={settings.appName} 
+            heroTitle1={settings.heroTitle1 || 'Tinggalkan Spreadsheet Rumit.'}
+            heroTitle2Prefix={settings.heroTitle2Prefix || 'Kuasai Uang Anda dengan '}
+            font={settings.heroFont || 'Plus Jakarta Sans, sans-serif'}
+          />
 
           {/* Subheading */}
-          <p className="text-base sm:text-lg md:text-xl text-stone-300 mb-7 max-w-2xl mx-auto leading-relaxed">
-            Hentikan "bocor halus" seketika dengan sistem <strong className="text-amber-300">Zero-Based Budgeting</strong>, integrasi <strong className="text-cyan-300">Telegram Bot 3 Detik</strong>, dan wawasan <strong className="text-emerald-300">AI Cerdas</strong>.
-          </p>
+          <p 
+            className="text-base sm:text-lg md:text-xl text-stone-300 mb-7 max-w-2xl mx-auto leading-relaxed"
+            style={{ fontFamily: settings.heroFont || 'Plus Jakarta Sans, sans-serif' }}
+            dangerouslySetInnerHTML={{ 
+              __html: settings.heroSubtitle || 'Hentikan "bocor halus" seketika dengan sistem <strong class="text-amber-300">Zero-Based Budgeting</strong>, integrasi <strong class="text-cyan-300">Telegram Bot 3 Detik</strong>, dan wawasan <strong class="text-emerald-300">AI Cerdas</strong>.'
+            }}
+          />
 
           {/* Action Triggers */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 max-w-md mx-auto mb-4">

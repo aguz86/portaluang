@@ -8,6 +8,10 @@ export interface GlobalSettings {
   aiRoleTitle?: string;
   aiTone?: string;
   aiSystemPrompt?: string;
+  heroTitle1?: string;
+  heroTitle2Prefix?: string;
+  heroSubtitle?: string;
+  heroFont?: string;
 }
 
 const DEFAULT_SETTINGS: GlobalSettings = {
@@ -17,7 +21,11 @@ const DEFAULT_SETTINGS: GlobalSettings = {
   aiName: "Portal Uang Advisor",
   aiRoleTitle: "AI Wealth Strategist",
   aiTone: "professional_supportive",
-  aiSystemPrompt: ""
+  aiSystemPrompt: "",
+  heroTitle1: 'Tinggalkan Spreadsheet Rumit.',
+  heroTitle2Prefix: 'Kuasai Uang Anda dengan ',
+  heroSubtitle: 'Hentikan "bocor halus" seketika dengan sistem <strong class="text-amber-300">Zero-Based Budgeting</strong>, integrasi <strong class="text-cyan-300">Telegram Bot 3 Detik</strong>, dan wawasan <strong class="text-emerald-300">AI Cerdas</strong>.',
+  heroFont: 'Plus Jakarta Sans, sans-serif'
 };
 
 export const useGlobalSettings = () => {
@@ -45,7 +53,11 @@ export const useGlobalSettings = () => {
           aiName: data.aiName || DEFAULT_SETTINGS.aiName,
           aiRoleTitle: data.aiRoleTitle || DEFAULT_SETTINGS.aiRoleTitle,
           aiTone: data.aiTone || DEFAULT_SETTINGS.aiTone,
-          aiSystemPrompt: data.aiSystemPrompt || DEFAULT_SETTINGS.aiSystemPrompt
+          aiSystemPrompt: data.aiSystemPrompt || DEFAULT_SETTINGS.aiSystemPrompt,
+          heroTitle1: data.heroTitle1 || DEFAULT_SETTINGS.heroTitle1,
+          heroTitle2Prefix: data.heroTitle2Prefix || DEFAULT_SETTINGS.heroTitle2Prefix,
+          heroSubtitle: data.heroSubtitle || DEFAULT_SETTINGS.heroSubtitle,
+          heroFont: data.heroFont || DEFAULT_SETTINGS.heroFont
         };
         
         // Only update if changed

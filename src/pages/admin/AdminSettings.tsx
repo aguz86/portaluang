@@ -29,6 +29,12 @@ export const AdminSettings: React.FC = () => {
     if (settings.aiRoleTitle) setAiRoleTitle(settings.aiRoleTitle);
   }, [settings]);
   
+  // Hero Section Settings
+  const [heroTitle1, setHeroTitle1] = useState(settings.heroTitle1 || 'Tinggalkan Spreadsheet Rumit.');
+  const [heroTitle2Prefix, setHeroTitle2Prefix] = useState(settings.heroTitle2Prefix || 'Kuasai Uang Anda dengan ');
+  const [heroSubtitle, setHeroSubtitle] = useState(settings.heroSubtitle || 'Hentikan "bocor halus" seketika dengan sistem <strong class="text-amber-300">Zero-Based Budgeting</strong>, integrasi <strong class="text-cyan-300">Telegram Bot 3 Detik</strong>, dan wawasan <strong class="text-emerald-300">AI Cerdas</strong>.');
+  const [heroFont, setHeroFont] = useState(settings.heroFont || 'Plus Jakarta Sans, sans-serif');
+
   const [pixelId, setPixelId] = useState('');
   const [capiToken, setCapiToken] = useState('');
   const [duitkuMerchantCode, setDuitkuMerchantCode] = useState('');
@@ -67,6 +73,10 @@ export const AdminSettings: React.FC = () => {
           setMaintenance(data.data.maintenance || false);
           if (data.data.aiName) setAiName(data.data.aiName);
           if (data.data.aiRoleTitle) setAiRoleTitle(data.data.aiRoleTitle);
+          if (data.data.heroTitle1) setHeroTitle1(data.data.heroTitle1);
+          if (data.data.heroTitle2Prefix) setHeroTitle2Prefix(data.data.heroTitle2Prefix);
+          if (data.data.heroSubtitle) setHeroSubtitle(data.data.heroSubtitle);
+          if (data.data.heroFont) setHeroFont(data.data.heroFont);
           if (data.data.socials) {
             setSocials({
               whatsapp: data.data.socials.whatsapp || '',
@@ -133,7 +143,11 @@ export const AdminSettings: React.FC = () => {
         appVersion,
         supportEmail,
         aiName,
-        aiRoleTitle
+        aiRoleTitle,
+        heroTitle1,
+        heroTitle2Prefix,
+        heroSubtitle,
+        heroFont
       };
       const token = localStorage.getItem('admin_token');
       const res = await fetch('/api/admin/settings', {
@@ -145,7 +159,10 @@ export const AdminSettings: React.FC = () => {
         body: JSON.stringify(payload)
       });
       if (res.ok) {
-        updateSettings({ appName, appVersion, supportEmail, aiName, aiRoleTitle });
+        updateSettings({ 
+          appName, appVersion, supportEmail, aiName, aiRoleTitle,
+          heroTitle1, heroTitle2Prefix, heroSubtitle, heroFont
+        });
         setMessage({ type: 'success', text: 'Konfigurasi Sistem & Pengaturan berhasil diverifikasi dan disimpan!' });
       } else {
         setMessage({ type: 'error', text: 'Gagal menyimpan pengaturan.' });
@@ -306,6 +323,12 @@ export const AdminSettings: React.FC = () => {
                 </button>
               </div>
             </div>
+
+            <div className="flex justify-end mt-6 pt-4 border-t border-amber-500/20">
+              <button type="submit" className="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold rounded-xl flex items-center gap-2 transition-colors text-sm">
+                <Save className="w-4 h-4" /> Simpan Pengaturan Duitku
+              </button>
+            </div>
           </div>
         </div>
 
@@ -337,6 +360,65 @@ export const AdminSettings: React.FC = () => {
               <input type="text" value={appVersion} onChange={(e) => setAppVersion(e.target.value)} placeholder="e.g. 1.2.0" className="mt-2 block w-full px-4 py-3 bg-stone-950 border border-stone-800 rounded-xl text-stone-100 font-mono text-sm" />
             </div>
           </div>
+
+          <div className="flex justify-end mt-6 pt-4 border-t border-stone-800/60">
+            <button type="submit" className="px-5 py-2.5 bg-stone-100 hover:bg-white text-stone-950 font-bold rounded-xl flex items-center gap-2 transition-colors text-sm">
+              <Save className="w-4 h-4" /> Simpan General Config
+            </button>
+          </div>
+        </div>
+
+        {/* Hero Section Configuration */}
+        <div className="bg-stone-900 border border-stone-800 rounded-2xl p-6 shadow-sm">
+          <div className="flex items-center gap-2 mb-6">
+            <Settings className="w-5 h-5 text-indigo-400" />
+            <h2 className="text-xl font-bold text-white tracking-tight">Landing Page Text & Typography</h2>
+          </div>
+
+          <div className="grid grid-cols-1 gap-6">
+            <div>
+              <label className="block text-sm font-semibold text-stone-300">Pilihan Font Headline</label>
+              <select 
+                value={heroFont} 
+                onChange={(e) => setHeroFont(e.target.value)} 
+                className="mt-2 block w-full px-4 py-3 bg-stone-950 border border-stone-800 rounded-xl text-stone-100 font-mono text-sm focus:border-indigo-500/50"
+              >
+                <option value="'Plus Jakarta Sans', sans-serif">Plus Jakarta Sans (Modern Clean)</option>
+                <option value="'Outfit', sans-serif">Outfit (Tech / Start-up)</option>
+                <option value="ui-sans-serif, system-ui, -apple-system, sans-serif">System Default</option>
+                <option value="'Georgia', serif">Georgia (Serif Klasik)</option>
+                <option value="ui-monospace, monospace">Monospace (Terminal)</option>
+              </select>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-semibold text-stone-300">Headline Baris 1</label>
+                <input type="text" value={heroTitle1} onChange={(e) => setHeroTitle1(e.target.value)} placeholder="Tinggalkan Spreadsheet Rumit." className="mt-2 block w-full px-4 py-3 bg-stone-950 border border-stone-800 rounded-xl text-stone-100 font-mono text-sm focus:border-indigo-500/50" />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-stone-300">Headline Baris 2 (Prefix)</label>
+                <input type="text" value={heroTitle2Prefix} onChange={(e) => setHeroTitle2Prefix(e.target.value)} placeholder="Kuasai Uang Anda dengan " className="mt-2 block w-full px-4 py-3 bg-stone-950 border border-stone-800 rounded-xl text-stone-100 font-mono text-sm focus:border-indigo-500/50" />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-stone-300">Subtitle Bawah Headline (Bisa pakai HTML)</label>
+              <p className="text-xs text-stone-500 mt-1 mb-2">Contoh formatting: <code className="bg-stone-950 px-1 py-0.5 rounded text-amber-400">&lt;strong class="text-amber-400"&gt;Teks Kuning&lt;/strong&gt;</code></p>
+              <textarea 
+                value={heroSubtitle} 
+                onChange={(e) => setHeroSubtitle(e.target.value)} 
+                rows={4}
+                className="mt-2 block w-full px-4 py-3 bg-stone-950 border border-stone-800 rounded-xl text-stone-100 font-mono text-sm focus:border-indigo-500/50"
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end mt-6 pt-4 border-t border-stone-800/60">
+            <button type="submit" className="px-5 py-2.5 bg-indigo-500 hover:bg-indigo-400 text-white font-bold rounded-xl flex items-center gap-2 transition-colors text-sm">
+              <Save className="w-4 h-4" /> Simpan Landing Page
+            </button>
+          </div>
         </div>
 
         <div className="bg-stone-900 border border-stone-800 rounded-2xl p-6 shadow-sm">
@@ -356,6 +438,12 @@ export const AdminSettings: React.FC = () => {
               <label className="block text-sm font-medium text-stone-300">Telegram Bot Token</label>
               <input type="password" value={telegramBotToken} onChange={(e) => setTelegramBotToken(e.target.value)} placeholder="123456789:ABCDEF..." className="mt-2 block w-full px-4 py-3 bg-stone-950 border border-stone-800 rounded-xl text-stone-100 font-mono text-sm" />
             </div>
+          </div>
+
+          <div className="flex justify-end mt-6 pt-4 border-t border-stone-800/60">
+            <button type="submit" className="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold rounded-xl flex items-center gap-2 transition-colors text-sm">
+              <Save className="w-4 h-4" /> Simpan API Keys
+            </button>
           </div>
         </div>
 
@@ -389,6 +477,12 @@ export const AdminSettings: React.FC = () => {
               <label className="block text-sm font-medium text-stone-300">Facebook</label>
               <input type="text" value={socials.facebook} onChange={(e) => setSocials({...socials, facebook: e.target.value})} placeholder="https://facebook.com/..." className="mt-2 block w-full px-4 py-3 bg-stone-950 border border-stone-800 rounded-xl text-stone-100 font-mono text-sm" />
             </div>
+          </div>
+
+          <div className="flex justify-end mt-6 pt-4 border-t border-stone-800/60">
+            <button type="submit" className="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold rounded-xl flex items-center gap-2 transition-colors text-sm">
+              <Save className="w-4 h-4" /> Simpan Social Media
+            </button>
           </div>
         </div>
 

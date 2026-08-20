@@ -424,7 +424,11 @@ async function startServer() {
           aiName: result.rows[0].data.aiName || 'Portal Uang Advisor',
           aiRoleTitle: result.rows[0].data.aiRoleTitle || 'AI Wealth Strategist',
           aiTone: result.rows[0].data.aiTone || 'professional_supportive',
-          aiSystemPrompt: result.rows[0].data.aiSystemPrompt || ''
+          aiSystemPrompt: result.rows[0].data.aiSystemPrompt || '',
+          heroTitle1: result.rows[0].data.heroTitle1 || 'Tinggalkan Spreadsheet Rumit.',
+          heroTitle2Prefix: result.rows[0].data.heroTitle2Prefix || 'Kuasai Uang Anda dengan ',
+          heroSubtitle: result.rows[0].data.heroSubtitle || 'Hentikan "bocor halus" seketika dengan sistem <strong class="text-amber-300">Zero-Based Budgeting</strong>, integrasi <strong class="text-cyan-300">Telegram Bot 3 Detik</strong>, dan wawasan <strong class="text-emerald-300">AI Cerdas</strong>.',
+          heroFont: result.rows[0].data.heroFont || 'Plus Jakarta Sans, sans-serif'
         });
       } else {
         res.json({ 
@@ -436,7 +440,11 @@ async function startServer() {
           aiName: 'Portal Uang Advisor',
           aiRoleTitle: 'AI Wealth Strategist',
           aiTone: 'professional_supportive',
-          aiSystemPrompt: ''
+          aiSystemPrompt: '',
+          heroTitle1: 'Tinggalkan Spreadsheet Rumit.',
+          heroTitle2Prefix: 'Kuasai Uang Anda dengan ',
+          heroSubtitle: 'Hentikan "bocor halus" seketika dengan sistem <strong class="text-amber-300">Zero-Based Budgeting</strong>, integrasi <strong class="text-cyan-300">Telegram Bot 3 Detik</strong>, dan wawasan <strong class="text-emerald-300">AI Cerdas</strong>.',
+          heroFont: 'Plus Jakarta Sans, sans-serif'
         });
       }
     } catch (err) {
