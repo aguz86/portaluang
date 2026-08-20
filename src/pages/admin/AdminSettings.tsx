@@ -1,7 +1,7 @@
 import { Shield } from 'lucide-react';
 import { useGlobalSettings } from '../../hooks/useGlobalSettings';
 import React, { useState, useEffect } from 'react';
-import { Save, Settings2, Key, Globe, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { Save, Settings2, Key, Globe, AlertTriangle, CheckCircle2, Settings } from 'lucide-react';
 import { isSafeUrl, checkMaliciousContent } from '../../utils/security';
 
 export const AdminSettings: React.FC = () => {
