@@ -226,7 +226,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ showToast }) => {
             <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
               <div className="text-xs text-stone-400 flex items-center gap-1.5">
                 <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                <span>Seluruh 10 fitur Aura Ledger terbuka & siap digunakan</span>
+                <span>Seluruh 10 fitur Portal Uang terbuka & siap digunakan</span>
               </div>
               <button
                 onClick={() => setActiveModal('upgrade')}

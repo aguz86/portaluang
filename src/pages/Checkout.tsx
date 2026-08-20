@@ -125,8 +125,8 @@ export default function Checkout() {
             planName: selectedPlan.name,
             amount: finalTotal,
             paymentMethod: paymentMethod,
-            email: userProfile.email || 'user@auraledger.com',
-            customerName: userProfile.name || 'Pengguna Aura Ledger',
+            email: userProfile.email || 'user@portaluang.id',
+            customerName: userProfile.name || 'Pengguna Portal Uang',
             phoneNumber: ewalletPhone || '08123456789'
           })
         });
@@ -212,7 +212,7 @@ export default function Checkout() {
     if (cleanCode === "HEMAT20" || cleanCode === "DISKON20") {
       setAppliedVoucher({ code: cleanCode, discount: 20, type: 'percent' });
       setVoucherSuccess("Voucher berhasil! Diskon tambahan 20% diterapkan.");
-    } else if (cleanCode === "AURA10") {
+    } else if (cleanCode === "PORTAL10") {
       setAppliedVoucher({ code: cleanCode, discount: 10, type: 'percent' });
       setVoucherSuccess("Voucher berhasil! Diskon tambahan 10% diterapkan.");
     } else if (cleanCode === "LAUNCH50") {
@@ -334,7 +334,7 @@ export default function Checkout() {
               </h1>
               <p className="text-xs sm:text-sm text-stone-400 mt-1">
                 {isTrial 
-                  ? "Nikmati akses gratis seluruh 10 fitur Aura Ledger selama 24 jam."
+                  ? "Nikmati akses gratis seluruh 10 fitur Portal Uang selama 24 jam."
                   : "Selesaikan pembayaran sesuai paket terpilih. Paket akan aktif otomatis secara instan setelah status lunas."}
               </p>
             </div>
@@ -617,7 +617,7 @@ export default function Checkout() {
                     Uji Coba 24 Jam Siap Diaktifkan
                   </h3>
                   <p className="text-sm text-stone-300 mt-2 max-w-md mx-auto">
-                    Anda memilih paket <strong>Free Trial</strong>. Tidak ada biaya yang dikenakan (Rp 0) dan Anda dapat langsung menikmati semua 10 fitur Aura Ledger.
+                    Anda memilih paket <strong>Free Trial</strong>. Tidak ada biaya yang dikenakan (Rp 0) dan Anda dapat langsung menikmati semua 10 fitur Portal Uang.
                   </p>
                 </div>
 
@@ -967,7 +967,7 @@ export default function Checkout() {
                 onClick={() => navigate('/app/dashboard')}
                 className="w-full py-4 rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 font-black text-base flex items-center justify-center gap-2 shadow-lg shadow-amber-500/25 transition-all"
               >
-                <span>Buka Dashboard Aura Ledger</span>
+                <span>Buka Dashboard Portal Uang</span>
                 <ArrowRight className="w-5 h-5" />
               </button>
 

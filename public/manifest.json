@@ -1,6 +1,6 @@
 {
-  "name": "AuraLedger - Personal Wealth OS",
-  "short_name": "AuraLedger",
+  "name": "Portal Uang",
+  "short_name": "Portal Uang",
   "description": "Sistem Manajemen Keuangan & Anggaran Zero-Based Budgeting Pribadi",
   "start_url": "/app/dashboard",
   "scope": "/",

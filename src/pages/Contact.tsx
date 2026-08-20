@@ -12,7 +12,7 @@ export default function Contact() {
           <h1 className="text-4xl font-bold text-white mb-6">Hubungi Kami</h1>
           <p className="text-stone-400 mb-8">Punya pertanyaan, kritik, atau saran? Kami ingin mendengar dari Anda!</p>
           <div className="space-y-4 text-stone-300">
-            <p><strong>Email:</strong> support@auraledger.com</p>
+            <p><strong>Email:</strong> support@portaluang.id</p>
             <p><strong>Twitter:</strong>@{settings.appName}</p>
             <p><strong>Alamat:</strong> Jakarta, Indonesia</p>
           </div>

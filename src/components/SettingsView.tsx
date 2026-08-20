@@ -45,7 +45,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [disconnecting, setDisconnecting] = useState<boolean>(false);
   const [showManualInput, setShowManualInput] = useState<boolean>(false);
 
-  const effectiveUserId = propUserId || localStorage.getItem('auraledger_user_id') || 'pengguna@auraledger.app';
+  const effectiveUserId = propUserId || localStorage.getItem('auraledger_user_id') || 'pengguna@portaluang.id';
 
   // Keep localSettings in sync if parent settings change (e.g. from linking)
   useEffect(() => {

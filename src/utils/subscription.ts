@@ -423,7 +423,7 @@ export const getUserProfile = (): UserProfile => {
   return {
     name: email.split('@')[0] || 'Caksuga',
     email,
-    job: 'Pengguna Aura Ledger',
+    job: 'Pengguna Portal Uang',
     subscription: sub,
     createdAt: new Date().toISOString()
   };

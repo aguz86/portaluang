@@ -1,5 +1,5 @@
-// AuraLedger Progressive Web App Service Worker
-const CACHE_NAME = 'auraledger-pwa-v1';
+// Portal Uang Progressive Web App Service Worker
+const CACHE_NAME = 'portaluang-pwa-v1';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -74,7 +74,7 @@ self.addEventListener('fetch', (event) => {
 
 // Push notification listener (for future web push sync)
 self.addEventListener('push', (event) => {
-  let data = { title: 'AuraLedger Notifikasi', body: 'Pengingat tagihan keuangan Anda' };
+  let data = { title: 'Portal Uang Notifikasi', body: 'Pengingat tagihan keuangan Anda' };
   if (event.data) {
     try {
       data = event.data.json();
