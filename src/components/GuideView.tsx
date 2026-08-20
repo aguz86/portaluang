@@ -8,14 +8,16 @@ import {
   Clock, 
   CheckCircle, 
   ArrowRight, 
-  Zap
+  Zap,
+  Download
 } from 'lucide-react';
 
 interface GuideViewProps {
   setActiveTab: (tab: ActiveTab) => void;
+  onLoadSampleData?: () => void;
 }
 
-export const GuideView: React.FC<GuideViewProps> = ({ setActiveTab }) => {
+export const GuideView: React.FC<GuideViewProps> = ({ setActiveTab, onLoadSampleData }) => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [activeCategory, setActiveCategory] = useState<string>('SEMUA');
@@ -55,6 +57,15 @@ export const GuideView: React.FC<GuideViewProps> = ({ setActiveTab }) => {
             Panduan interaktif lengkap seputar penganggaran Zero-Based, matematika pelunasan utang metode Avalanche/Snowball, strategi Sinking Fund, serta keamanan data finansial.
           </p>
         </div>
+        {onLoadSampleData && (
+          <button 
+            onClick={onLoadSampleData}
+            className="px-4 py-2.5 bg-amber-500/10 text-amber-400 border border-amber-500/20 hover:bg-amber-500 hover:text-stone-950 transition-colors font-bold text-xs rounded-xl flex items-center gap-2 shrink-0 shadow-sm"
+          >
+            <Download className="w-4 h-4" />
+            <span>Muat Data Sample</span>
+          </button>
+        )}
       </div>
 
       {/* Main Grid: Chapter Index Sidebar + Chapter Reader */}

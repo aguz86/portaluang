@@ -31,6 +31,8 @@ import {
   INITIAL_NOTIFICATION_SETTINGS
 } from './data/initialData';
 
+import * as SampleData from "./data/sampleData";
+
 import { Navbar } from './components/Navbar';
 import { DashboardView } from './components/DashboardView';
 import { ZeroBasedBudgetView } from './components/ZeroBasedBudgetView';
@@ -778,7 +780,7 @@ export default function DashboardApp() {
   const handleResetData = () => {
     requestConfirm(
       "Reset Semua Data",
-      "Apakah Anda yakin ingin menghapus semua data dan kembali ke keadaan demo awal? Tindakan ini tidak dapat dibatalkan.",
+      "Apakah Anda yakin ingin menghapus semua data dan mengembalikan aplikasi ke kondisi awal yang kosong? Tindakan ini tidak dapat dibatalkan.",
       () => {
         localStorage.removeItem(LOCAL_STORAGE_KEY);
         setAccounts(INITIAL_ACCOUNTS);
@@ -789,7 +791,25 @@ export default function DashboardApp() {
         setPaydayConfig(INITIAL_PAYDAY_CONFIG);
         setNetWorthSnapshots(INITIAL_NET_WORTH_SNAPSHOTS);
         setInvestments(INITIAL_INVESTMENTS);
-        showToast("Semua data berhasil direset ke keadaan awal");
+        showToast("Semua data berhasil dihapus dan direset");
+      }
+    );
+  };
+
+  const handleLoadSampleData = () => {
+    requestConfirm(
+      "Muat Data Sample?",
+      "Tindakan ini akan menimpa data Anda saat ini dengan data sample untuk pembelajaran. Semua data yang ada sebelumnya akan terhapus.",
+      () => {
+        setAccounts(SampleData.INITIAL_ACCOUNTS);
+        setBudgetCategories(SampleData.INITIAL_BUDGET_CATEGORIES);
+        setBills(SampleData.INITIAL_BILLS);
+        setSinkingFunds(SampleData.INITIAL_SINKING_FUNDS);
+        setTransactions(SampleData.INITIAL_TRANSACTIONS);
+        setPaydayConfig(SampleData.INITIAL_PAYDAY_CONFIG);
+        setNetWorthSnapshots(SampleData.INITIAL_NET_WORTH_SNAPSHOTS);
+        setInvestments(SampleData.INITIAL_INVESTMENTS);
+        showToast("Data sample berhasil dimuat ke aplikasi");
       }
     );
   };
@@ -940,7 +960,7 @@ export default function DashboardApp() {
         } />
 
         <Route path="guide" element={
-          <GuideView setActiveTab={handleSetActiveTab} />
+          <GuideView setActiveTab={handleSetActiveTab} onLoadSampleData={handleLoadSampleData} />
         } />
       
         <Route path="settings/telegram" element={<SettingsView settings={notificationSettings} setSettings={setNotificationSettings} showToast={showToast} userId={userId} onOpenInstallModal={() => pwa.setShowModal(true)} isStandalone={pwa.isStandalone} />} />

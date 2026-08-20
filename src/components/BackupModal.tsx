@@ -170,7 +170,7 @@ export const BackupModal: React.FC<BackupModalProps> = ({
               className="w-full py-2.5 px-4 rounded-xl bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 text-xs font-semibold flex items-center justify-center gap-2 border border-rose-800/60 transition-colors mt-4"
             >
               <RotateCcw className="w-4 h-4" />
-              <span>Reset to Sample Data</span>
+              <span>Hapus & Reset Semua Data</span>
             </button>
           </div>
         </div>

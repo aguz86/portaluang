@@ -35,6 +35,8 @@ export const AdminSettings: React.FC = () => {
   const [heroSubtitle, setHeroSubtitle] = useState(settings.heroSubtitle || 'Hentikan "bocor halus" seketika dengan sistem <strong class="text-amber-300">Zero-Based Budgeting</strong>, integrasi <strong class="text-cyan-300">Telegram Bot 3 Detik</strong>, dan wawasan <strong class="text-emerald-300">AI Cerdas</strong>.');
   const [heroFont, setHeroFont] = useState(settings.heroFont || 'Plus Jakarta Sans, sans-serif');
 
+  const [messages, setMessages] = useState<{ [key: string]: { type: 'success' | 'error', text: string } }>({});
+  
   const [pixelId, setPixelId] = useState('');
   const [capiToken, setCapiToken] = useState('');
   const [duitkuMerchantCode, setDuitkuMerchantCode] = useState('');
@@ -110,20 +112,21 @@ export const AdminSettings: React.FC = () => {
     fetchSettings();
   }, []);
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSaveSection = async (sectionId: string, successMessage: string) => {
+    // Clear previous message for this section
+    setMessages(prev => ({ ...prev, [sectionId]: undefined } as any));
 
     // Security validation on social URLs to prevent phishing links or judi online redirects
     for (const [platform, url] of Object.entries(socials)) {
       if (url && typeof url === 'string') {
         const trimmed = (url as string).trim();
         if (!isSafeUrl(trimmed) || (!trimmed.startsWith('https://') && !trimmed.startsWith('http://'))) {
-          setMessage({ type: 'error', text: `Link ${platform} tidak valid atau berisiko keamanan (harus menggunakan HTTPS).` });
+          setMessages(prev => ({ ...prev, [sectionId]: { type: 'error', text: `Link ${platform} tidak valid atau berisiko keamanan.` } }));
           return;
         }
         const check = checkMaliciousContent(trimmed);
         if (check.isMalicious) {
-          setMessage({ type: 'error', text: `Link ${platform} ditolak: terdeteksi pola berbahaya.` });
+          setMessages(prev => ({ ...prev, [sectionId]: { type: 'error', text: `Link ${platform} ditolak: terdeteksi pola berbahaya.` } }));
           return;
         }
       }
@@ -163,12 +166,13 @@ export const AdminSettings: React.FC = () => {
           appName, appVersion, supportEmail, aiName, aiRoleTitle,
           heroTitle1, heroTitle2Prefix, heroSubtitle, heroFont
         });
-        setMessage({ type: 'success', text: 'Konfigurasi Sistem & Pengaturan berhasil diverifikasi dan disimpan!' });
+        setMessages(prev => ({ ...prev, [sectionId]: { type: 'success', text: successMessage } }));
       } else {
-        setMessage({ type: 'error', text: 'Gagal menyimpan pengaturan.' });
+        const errData = await res.json().catch(() => ({}));
+        setMessages(prev => ({ ...prev, [sectionId]: { type: 'error', text: errData.error || 'Gagal menyimpan pengaturan.' } }));
       }
     } catch (err) {
-      setMessage({ type: 'error', text: 'Error menyimpan pengaturan.' });
+      setMessages(prev => ({ ...prev, [sectionId]: { type: 'error', text: 'Koneksi gagal. Periksa koneksi internet Anda.' } }));
     }
   };
 
@@ -213,15 +217,7 @@ export const AdminSettings: React.FC = () => {
         <p className="text-sm text-stone-400 mt-1">Konfigurasi parameter aplikasi dan integrasi Payment Gateway Duitku.</p>
       </div>
 
-      {message && (
-        <div className={`p-4 rounded-xl flex items-center gap-3 ${
-          message.type === 'success' ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400' : 'bg-rose-500/10 border border-rose-500/20 text-rose-400'
-        }`}>
-          {message.type === 'success' ? <CheckCircle2 className="w-5 h-5" /> : <AlertTriangle className="w-5 h-5" />}
-          <p className="text-sm font-medium">{message.text}</p>
-        </div>
-      )}
-      <form onSubmit={handleSave} className="space-y-6">
+      <div className="space-y-6">
         {/* DUITKU PAYMENT GATEWAY CONFIGURATION */}
         <div className="bg-stone-900 border border-amber-500/30 rounded-2xl p-6 shadow-md relative overflow-hidden">
           <div className="absolute top-0 right-0 px-4 py-1 bg-amber-500/15 border-b border-l border-amber-500/30 rounded-bl-xl text-[11px] font-bold text-amber-400">
@@ -236,7 +232,15 @@ export const AdminSettings: React.FC = () => {
             Seluruh transaksi pendaftaran dan perpanjangan langganan diamankan dengan enkripsi 256-bit dan verifikasi hash signature MD5 Duitku.
           </p>
 
-          <div className="space-y-4">
+          <div className="space-y-4 mt-6">
+            {messages['duitku'] && (
+              <div className={`p-4 rounded-xl flex items-center gap-3 ${
+                messages['duitku'].type === 'success' ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400' : 'bg-rose-500/10 border border-rose-500/20 text-rose-400'
+              }`}>
+                {messages['duitku'].type === 'success' ? <CheckCircle2 className="w-5 h-5" /> : <AlertTriangle className="w-5 h-5" />}
+                <p className="text-sm font-medium">{messages['duitku'].text}</p>
+              </div>
+            )}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-stone-300">
@@ -325,7 +329,11 @@ export const AdminSettings: React.FC = () => {
             </div>
 
             <div className="flex justify-end mt-6 pt-4 border-t border-amber-500/20">
-              <button type="submit" className="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold rounded-xl flex items-center gap-2 transition-colors text-sm">
+              <button 
+                type="button" 
+                onClick={() => handleSaveSection('duitku', 'Perubahan data Payment Gateway berhasil disimpan!')}
+                className="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold rounded-xl flex items-center gap-2 transition-colors text-sm"
+              >
                 <Save className="w-4 h-4" /> Simpan Pengaturan Duitku
               </button>
             </div>
@@ -337,6 +345,14 @@ export const AdminSettings: React.FC = () => {
             <Globe className="w-5 h-5 text-stone-400" /> General Configuration
           </h3>
           <div className="space-y-4">
+            {messages['general'] && (
+              <div className={`p-4 rounded-xl flex items-center gap-3 ${
+                messages['general'].type === 'success' ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400' : 'bg-rose-500/10 border border-rose-500/20 text-rose-400'
+              }`}>
+                {messages['general'].type === 'success' ? <CheckCircle2 className="w-5 h-5" /> : <AlertTriangle className="w-5 h-5" />}
+                <p className="text-sm font-medium">{messages['general'].text}</p>
+              </div>
+            )}
             <div>
               <label className="block text-sm font-medium text-stone-300">App Name</label>
               <input type="text" value={appName} onChange={(e) => setAppName(e.target.value)} className="mt-2 block w-full px-4 py-3 bg-stone-950 border border-stone-800 rounded-xl text-stone-100" />
@@ -362,7 +378,11 @@ export const AdminSettings: React.FC = () => {
           </div>
 
           <div className="flex justify-end mt-6 pt-4 border-t border-stone-800/60">
-            <button type="submit" className="px-5 py-2.5 bg-stone-100 hover:bg-white text-stone-950 font-bold rounded-xl flex items-center gap-2 transition-colors text-sm">
+            <button 
+              type="button" 
+              onClick={() => handleSaveSection('general', 'General Configuration berhasil disimpan!')}
+              className="px-5 py-2.5 bg-stone-100 hover:bg-white text-stone-950 font-bold rounded-xl flex items-center gap-2 transition-colors text-sm"
+            >
               <Save className="w-4 h-4" /> Simpan General Config
             </button>
           </div>
@@ -376,6 +396,14 @@ export const AdminSettings: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 gap-6">
+            {messages['hero'] && (
+              <div className={`p-4 rounded-xl flex items-center gap-3 ${
+                messages['hero'].type === 'success' ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400' : 'bg-rose-500/10 border border-rose-500/20 text-rose-400'
+              }`}>
+                {messages['hero'].type === 'success' ? <CheckCircle2 className="w-5 h-5" /> : <AlertTriangle className="w-5 h-5" />}
+                <p className="text-sm font-medium">{messages['hero'].text}</p>
+              </div>
+            )}
             <div>
               <label className="block text-sm font-semibold text-stone-300">Pilihan Font Headline</label>
               <select 
@@ -415,7 +443,11 @@ export const AdminSettings: React.FC = () => {
           </div>
 
           <div className="flex justify-end mt-6 pt-4 border-t border-stone-800/60">
-            <button type="submit" className="px-5 py-2.5 bg-indigo-500 hover:bg-indigo-400 text-white font-bold rounded-xl flex items-center gap-2 transition-colors text-sm">
+            <button 
+              type="button" 
+              onClick={() => handleSaveSection('hero', 'Teks & Font Landing Page berhasil disimpan!')}
+              className="px-5 py-2.5 bg-indigo-500 hover:bg-indigo-400 text-white font-bold rounded-xl flex items-center gap-2 transition-colors text-sm"
+            >
               <Save className="w-4 h-4" /> Simpan Landing Page
             </button>
           </div>
@@ -426,6 +458,14 @@ export const AdminSettings: React.FC = () => {
             <Key className="w-5 h-5 text-amber-500" /> Marketing & External API Keys
           </h3>
           <div className="space-y-4">
+            {messages['api'] && (
+              <div className={`p-4 rounded-xl flex items-center gap-3 ${
+                messages['api'].type === 'success' ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400' : 'bg-rose-500/10 border border-rose-500/20 text-rose-400'
+              }`}>
+                {messages['api'].type === 'success' ? <CheckCircle2 className="w-5 h-5" /> : <AlertTriangle className="w-5 h-5" />}
+                <p className="text-sm font-medium">{messages['api'].text}</p>
+              </div>
+            )}
             <div>
               <label className="block text-sm font-medium text-stone-300">Meta Pixel ID</label>
               <input type="text" value={pixelId} onChange={(e) => setPixelId(e.target.value)} placeholder="123456789012345" className="mt-2 block w-full px-4 py-3 bg-stone-950 border border-stone-800 rounded-xl text-stone-100 font-mono text-sm" />
@@ -441,7 +481,11 @@ export const AdminSettings: React.FC = () => {
           </div>
 
           <div className="flex justify-end mt-6 pt-4 border-t border-stone-800/60">
-            <button type="submit" className="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold rounded-xl flex items-center gap-2 transition-colors text-sm">
+            <button 
+              type="button" 
+              onClick={() => handleSaveSection('api', 'Konfigurasi API berhasil disimpan!')}
+              className="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold rounded-xl flex items-center gap-2 transition-colors text-sm"
+            >
               <Save className="w-4 h-4" /> Simpan API Keys
             </button>
           </div>
@@ -452,6 +496,14 @@ export const AdminSettings: React.FC = () => {
           <h3 className="text-lg font-bold text-stone-100 mb-6 flex items-center gap-2">
             <Globe className="w-5 h-5 text-amber-500" /> Social Media Links
           </h3>
+          {messages['social'] && (
+            <div className={`p-4 rounded-xl flex items-center gap-3 mb-4 ${
+              messages['social'].type === 'success' ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400' : 'bg-rose-500/10 border border-rose-500/20 text-rose-400'
+            }`}>
+              {messages['social'].type === 'success' ? <CheckCircle2 className="w-5 h-5" /> : <AlertTriangle className="w-5 h-5" />}
+              <p className="text-sm font-medium">{messages['social'].text}</p>
+            </div>
+          )}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-stone-300">WhatsApp</label>
@@ -480,7 +532,11 @@ export const AdminSettings: React.FC = () => {
           </div>
 
           <div className="flex justify-end mt-6 pt-4 border-t border-stone-800/60">
-            <button type="submit" className="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold rounded-xl flex items-center gap-2 transition-colors text-sm">
+            <button 
+              type="button" 
+              onClick={() => handleSaveSection('social', 'Tautan Social Media berhasil diperbarui!')}
+              className="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold rounded-xl flex items-center gap-2 transition-colors text-sm"
+            >
               <Save className="w-4 h-4" /> Simpan Social Media
             </button>
           </div>
@@ -579,11 +635,23 @@ export const AdminSettings: React.FC = () => {
         </div>
 
         <div className="flex justify-end">
-          <button type="submit" className="px-6 py-3 bg-rose-500 hover:bg-rose-400 text-stone-950 font-bold rounded-xl flex items-center gap-2 transition-colors">
+          {messages['all'] && (
+            <div className={`p-4 rounded-xl flex items-center gap-3 mr-4 ${
+              messages['all'].type === 'success' ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400' : 'bg-rose-500/10 border border-rose-500/20 text-rose-400'
+            }`}>
+              {messages['all'].type === 'success' ? <CheckCircle2 className="w-5 h-5" /> : <AlertTriangle className="w-5 h-5" />}
+              <p className="text-sm font-medium">{messages['all'].text}</p>
+            </div>
+          )}
+          <button 
+            type="button" 
+            onClick={() => handleSaveSection('all', 'Semua perubahan berhasil disimpan!')}
+            className="px-6 py-3 bg-rose-500 hover:bg-rose-400 text-stone-950 font-bold rounded-xl flex items-center gap-2 transition-colors"
+          >
             <Save className="w-5 h-5" /> Save All Changes
           </button>
         </div>
-      </form>
+      </div>
     </div>
   );
 };
