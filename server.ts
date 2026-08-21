@@ -28,10 +28,36 @@ let pool: any = null;
 
 if (process.env.DATABASE_URL) {
   const { Pool } = require('pg');
-  pool = new Pool({
+  const pgPool = new Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: { rejectUnauthorized: false }
   });
+  pool = {
+    query: async (text: string, params?: any[]) => {
+      try {
+        return await pgPool.query(text, params);
+      } catch (err: any) {
+        if (err && err.code === 'ENETUNREACH' && err.message && err.message.includes(':')) {
+            err.message = 'Koneksi database gagal (IPv6 tidak didukung di environment ini). Jika Anda mengatur DATABASE_URL secara manual ke Supabase, gunakan IPv4 connection string (transaction pooler port 6543) atau aktifkan add-on IPv4. Detail: ' + err.message;
+        }
+        if (err && err.code === '42P01') { // 42P01 is PostgreSQL error code for undefined_table
+            console.log("Table app_state not found, creating it now...");
+            await pgPool.query(`
+              CREATE TABLE IF NOT EXISTS app_state (
+                id VARCHAR(255) PRIMARY KEY,
+                data JSONB,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+              );
+            `);
+            try {
+               await pgPool.query(`ALTER TABLE app_state ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;`);
+            } catch (e) {}
+            return await pgPool.query(text, params);
+        }
+        throw err;
+      }
+    }
+  };
 
   pool.query(`
     CREATE TABLE IF NOT EXISTS app_state (
