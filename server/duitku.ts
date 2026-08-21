@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { decrypt } from './cryptoUtils';
 
 export interface DuitkuConfig {
   merchantCode: string;
@@ -6,6 +7,7 @@ export interface DuitkuConfig {
   env: 'sandbox' | 'production';
   callbackUrl?: string;
   returnUrl?: string;
+  sandboxWhitelist?: string[];
 }
 
 export interface DuitkuTransaction {
@@ -27,6 +29,7 @@ export interface DuitkuTransaction {
   createdAt: string;
   paidAt?: string;
   duitkuResponse?: any;
+  env?: 'sandbox' | 'production';
 }
 
 // Default fallback configuration for Sandbox Testing
@@ -41,10 +44,31 @@ export async function getDuitkuConfig(pool: any): Promise<DuitkuConfig> {
     const result = await pool.query('SELECT data FROM app_state WHERE id = $1', ['global_settings']);
     if (result.rows.length > 0 && result.rows[0].data) {
       const data = result.rows[0].data;
+      const env = (process.env.DUITKU_ENV as 'sandbox' | 'production') || data.duitkuEnv || DEFAULT_CONFIG.env;
+      
+      let merchantCode = env === 'production' 
+        ? (data.duitkuProductionMerchantCode || data.duitkuMerchantCode || '') 
+        : (data.duitkuSandboxMerchantCode || data.duitkuMerchantCode || DEFAULT_CONFIG.merchantCode);
+        
+      let apiKey = env === 'production' 
+        ? (data.duitkuProductionApiKey || data.duitkuApiKey || '') 
+        : (data.duitkuSandboxApiKey || data.duitkuApiKey || DEFAULT_CONFIG.apiKey);
+
+      apiKey = decrypt(apiKey);
+
+      let sandboxWhitelist: string[] = [];
+      if (data.duitkuSandboxWhitelist) {
+        sandboxWhitelist = data.duitkuSandboxWhitelist
+          .split(',')
+          .map((e: string) => e.trim().toLowerCase())
+          .filter(Boolean);
+      }
+
       return {
-        merchantCode: process.env.DUITKU_MERCHANT_CODE || data.duitkuMerchantCode || DEFAULT_CONFIG.merchantCode,
-        apiKey: process.env.DUITKU_API_KEY || data.duitkuApiKey || DEFAULT_CONFIG.apiKey,
-        env: (process.env.DUITKU_ENV as 'sandbox' | 'production') || data.duitkuEnv || DEFAULT_CONFIG.env,
+        merchantCode: process.env.DUITKU_MERCHANT_CODE || merchantCode,
+        apiKey: process.env.DUITKU_API_KEY || apiKey,
+        env,
+        sandboxWhitelist
       };
     }
   } catch (err) {

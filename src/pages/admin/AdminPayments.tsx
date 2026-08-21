@@ -25,6 +25,7 @@ export const AdminPayments: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('ALL');
+  const [filterEnv, setFilterEnv] = useState<string>('ALL');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const fetchTransactions = async () => {
@@ -74,7 +75,9 @@ export const AdminPayments: React.FC = () => {
       t.planName.toLowerCase().includes(search.toLowerCase()) ||
       t.paymentMethodName.toLowerCase().includes(search.toLowerCase());
     const matchesStatus = filterStatus === 'ALL' || t.status === filterStatus;
-    return matchesSearch && matchesStatus;
+    const envVal = (t as any).env || 'sandbox'; // Fallback to sandbox for old transactions
+    const matchesEnv = filterEnv === 'ALL' || envVal === filterEnv;
+    return matchesSearch && matchesStatus && matchesEnv;
   });
 
   const totalVolume = transactions
@@ -186,7 +189,14 @@ export const AdminPayments: React.FC = () => {
                 filtered.map((tx) => (
                   <tr key={tx.merchantOrderId} className="hover:bg-stone-850/50 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-mono font-bold text-stone-200">{tx.merchantOrderId}</div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <div className="text-sm font-mono font-bold text-stone-200">{tx.merchantOrderId}</div>
+                        {(tx as any).env === 'production' ? (
+                          <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 text-[9px] font-bold uppercase tracking-widest border border-emerald-500/30">Live</span>
+                        ) : (
+                          <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 text-[9px] font-bold uppercase tracking-widest border border-amber-500/30">Sandbox</span>
+                        )}
+                      </div>
                       <div className="text-xs text-stone-500 font-mono">Ref: {tx.reference}</div>
                       <div className="text-[11px] text-stone-500 mt-0.5">
                         {new Date(tx.createdAt).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}

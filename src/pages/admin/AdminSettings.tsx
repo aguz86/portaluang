@@ -39,9 +39,12 @@ export const AdminSettings: React.FC = () => {
   
   const [pixelId, setPixelId] = useState('');
   const [capiToken, setCapiToken] = useState('');
-  const [duitkuMerchantCode, setDuitkuMerchantCode] = useState('');
-  const [duitkuApiKey, setDuitkuApiKey] = useState('');
   const [duitkuEnv, setDuitkuEnv] = useState<'sandbox' | 'production'>('sandbox');
+  const [duitkuSandboxMerchantCode, setDuitkuSandboxMerchantCode] = useState('');
+  const [duitkuSandboxApiKey, setDuitkuSandboxApiKey] = useState('');
+  const [duitkuProductionMerchantCode, setDuitkuProductionMerchantCode] = useState('');
+  const [duitkuProductionApiKey, setDuitkuProductionApiKey] = useState('');
+  const [duitkuSandboxWhitelist, setDuitkuSandboxWhitelist] = useState('');
   const [telegramBotToken, setTelegramBotToken] = useState('');
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<{type: 'success'|'error', text: string} | null>(null);
@@ -68,9 +71,12 @@ export const AdminSettings: React.FC = () => {
         if (data.success && data.data) {
           setPixelId(data.data.pixelId || '');
           setCapiToken(data.data.capiToken || '');
-          setDuitkuMerchantCode(data.data.duitkuMerchantCode || '');
-          setDuitkuApiKey(data.data.duitkuApiKey || '');
           setDuitkuEnv(data.data.duitkuEnv || 'sandbox');
+          setDuitkuSandboxMerchantCode(data.data.duitkuSandboxMerchantCode || data.data.duitkuMerchantCode || '');
+          setDuitkuSandboxApiKey(data.data.duitkuSandboxApiKey || data.data.duitkuApiKey || '');
+          setDuitkuProductionMerchantCode(data.data.duitkuProductionMerchantCode || '');
+          setDuitkuProductionApiKey(data.data.duitkuProductionApiKey || '');
+          setDuitkuSandboxWhitelist(data.data.duitkuSandboxWhitelist || '');
           setTelegramBotToken(data.data.telegramBotToken || '');
           setMaintenance(data.data.maintenance || false);
           if (data.data.aiName) setAiName(data.data.aiName);
@@ -136,9 +142,12 @@ export const AdminSettings: React.FC = () => {
       const payload = {
         pixelId,
         capiToken,
-        duitkuMerchantCode,
-        duitkuApiKey,
         duitkuEnv,
+        duitkuSandboxMerchantCode,
+        duitkuSandboxApiKey,
+        duitkuProductionMerchantCode,
+        duitkuProductionApiKey,
+        duitkuSandboxWhitelist,
         telegramBotToken,
         maintenance,
         socials,
