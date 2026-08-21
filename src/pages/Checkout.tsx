@@ -248,21 +248,15 @@ export default function Checkout() {
       return;
     }
 
-    // Strict 4-Step Paid Flow: Pilih Paket -> Bayar Sesuai Paket -> Bayar -> Jika sudah Lunas Baru Paket Terpilih Aktif Otomatis
-    setProcessingStep("Menghubungkan ke Duitku Gateway & memverifikasi status pembayaran...");
+    setProcessingStep("Mengecek status pembayaran ke Duitku Gateway...");
     
     try {
       const currentOrderId = duitkuInvoice?.merchantOrderId || invoiceId;
-      await fetch('/api/payment/duitku/simulate-sandbox-pay', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ merchantOrderId: currentOrderId })
-      });
-
-      setProcessingStep("Verifikasi MD5 Signature IPN Duitku berhasil (Status: LUNAS)...");
+      const res = await fetch(`/api/payment/duitku/check-status/${currentOrderId}`);
+      const data = await res.json();
       
-      setTimeout(() => {
-        setProcessingStep("Pelunasan Duitku terverifikasi LUNAS! Mengaktifkan paket terpilih secara otomatis...");
+      if (data.success && data.isPaid) {
+        setProcessingStep("Pelunasan terverifikasi! Mengaktifkan paket secara otomatis...");
         setTimeout(() => {
           let methodLabel = duitkuInvoice?.paymentMethodName || "Duitku Payment Gateway";
           if (paymentMethod === 'qris') {
@@ -272,18 +266,17 @@ export default function Checkout() {
           } else if (paymentMethod === 'ewallet') {
             methodLabel = `Duitku E-Wallet (${ewalletProvider.toUpperCase()})`;
           }
-
           activateUserPlan(selectedPlan.id, methodLabel, finalTotal, currentOrderId);
           setIsProcessing(false);
           setIsSuccess(true);
         }, 600);
-      }, 600);
-    } catch (e) {
-      // Fallback activation
-      let methodLabel = duitkuInvoice?.paymentMethodName || "Duitku Gateway";
-      activateUserPlan(selectedPlan.id, methodLabel, finalTotal, invoiceId);
+      } else {
+        setIsProcessing(false);
+        alert("Pembayaran belum lunas/diterima oleh Duitku. Silakan selesaikan pembayaran terlebih dahulu (atau tunggu beberapa menit jika sudah bayar).");
+      }
+    } catch (err) {
       setIsProcessing(false);
-      setIsSuccess(true);
+      alert("Terjadi kesalahan saat mengecek status pembayaran ke server.");
     }
   };
 
