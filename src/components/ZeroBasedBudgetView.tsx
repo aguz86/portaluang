@@ -97,7 +97,7 @@ export const ZeroBasedBudgetView: React.FC<ZeroBasedBudgetViewProps> = ({
   
   const monthTransactions = printDateRange 
     ? effectiveTransactions 
-    : transactions.filter((t) => t.date.startsWith(currentMonth));
+    : transactions.filter((t) => t.date?.startsWith(currentMonth));
 
   const getActualForCategory = (catName: string) => {
     return monthTransactions

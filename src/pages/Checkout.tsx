@@ -267,7 +267,7 @@ export default function Checkout() {
           let methodLabel = duitkuInvoice?.paymentMethodName || "Duitku Payment Gateway";
           if (paymentMethod === 'qris') {
             methodLabel = "Duitku QRIS Instan";
-          } else if (paymentMethod.startsWith('va_')) {
+          } else if (paymentMethod?.startsWith('va_')) {
             methodLabel = `Duitku Virtual Account ${paymentMethod.replace('va_', '').toUpperCase()}`;
           } else if (paymentMethod === 'ewallet') {
             methodLabel = `Duitku E-Wallet (${ewalletProvider.toUpperCase()})`;
@@ -687,7 +687,7 @@ export default function Checkout() {
                     type="button"
                     onClick={() => setPaymentMethod('va_bca')}
                     className={`p-3.5 rounded-2xl border text-center transition-all flex flex-col items-center justify-center gap-1.5 ${
-                      paymentMethod.startsWith('va_')
+                      paymentMethod?.startsWith('va_')
                         ? 'bg-amber-500/15 border-amber-500 text-amber-300 font-bold shadow-md ring-1 ring-amber-500/40'
                         : 'bg-stone-950 border-stone-800 text-stone-400 hover:border-stone-700 hover:text-stone-200'
                     }`}
@@ -762,7 +762,7 @@ export default function Checkout() {
                 )}
 
                 {/* TAB 2: VIRTUAL ACCOUNT DETAILS */}
-                {paymentMethod.startsWith('va_') && (
+                {paymentMethod?.startsWith('va_') && (
                   <div className="bg-stone-950 border border-stone-800 rounded-2xl p-6 space-y-4 animate-fadeIn">
                     <div className="text-xs font-bold text-stone-400 uppercase tracking-wider">
                       Pilih Bank Virtual Account Duitku:

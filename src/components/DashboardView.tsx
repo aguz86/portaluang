@@ -56,7 +56,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   // Monthly income & expenses calculation
   const currentMonth = new Date().toISOString().substring(0, 7); // YYYY-MM
-  const monthTransactions = transactions.filter((t) => t.date.startsWith(currentMonth));
+  const monthTransactions = transactions.filter((t) => t.date?.startsWith(currentMonth));
 
   const monthlyIncome = monthTransactions
     .filter((t) => t.type === 'income')

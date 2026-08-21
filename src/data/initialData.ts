@@ -18,7 +18,7 @@ export const INITIAL_BUDGET_CATEGORIES: BudgetCategory[] = [
   { id: 'cat-fb-2', group: 'Tagihan Tetap', name: 'Listrik & Air', planned: 0, icon: 'Zap' },
   { id: 'cat-ve-1', group: 'Pengeluaran Variabel', name: 'Belanja Bulanan', planned: 0, icon: 'ShoppingCart' },
   { id: 'cat-sf-1', group: 'Pos Sinking Fund', name: 'Dana Darurat', planned: 0, icon: 'Shield' },
-  { id: 'cat-dp-1', group: 'Pelunasan Utang', name: 'Cicilan Kendaraan', planned: 0, icon: 'Car' }
+  { id: 'cat-dp-1', group: 'Pelunasan Hutang', name: 'Cicilan Kendaraan', planned: 0, icon: 'Car' }
 ];
 
 export const INITIAL_BILLS: Bill[] = [];

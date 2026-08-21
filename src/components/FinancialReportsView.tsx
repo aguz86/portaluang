@@ -30,7 +30,7 @@ export const FinancialReportsView: React.FC<FinancialReportsViewProps> = ({
   // Wait, if printDateRange is set, we use effectiveTransactions, otherwise monthTransactions.
   const monthTransactions = printDateRange 
     ? effectiveTransactions 
-    : transactions.filter((t) => t.date.startsWith(currentMonth));
+    : transactions.filter((t) => t.date?.startsWith(currentMonth));
 
   const getActualForCategory = (catName: string) => {
     return monthTransactions

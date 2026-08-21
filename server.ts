@@ -39,7 +39,7 @@ if (process.env.DATABASE_URL) {
       data JSONB,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
-  `).catch((err: any) => console.error('Failed to create app_state table in Postgres:', err));
+  `).then(() => pool.query(`ALTER TABLE app_state ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;`).catch(() => {})).catch((err: any) => console.error('Failed to create app_state table in Postgres:', err));
 } else {
   pool = {
     query: async (queryStr: any, params: any[] = []) => {
@@ -74,7 +74,7 @@ if (process.env.DATABASE_URL) {
       }
       return { rows: data ? [{ data }] : [] };
     } else if (queryStr.toUpperCase().includes('INSERT')) {
-      // params[1] should be the stringified JSON or data
+      // params[1] should be the strinified JSON or data
       const dataToStore = typeof params[1] === 'string' ? params[1] : JSON.stringify(params[1]);
       appStateDb.set(id, dataToStore);
       return { rowCount: 1 };
@@ -104,25 +104,25 @@ async function startServer() {
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('X-Frame-Options', 'SAMEORIGIN');
     res.setHeader('X-XSS-Protection', '1; mode=block');
-    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    res.setHeader('Referrer-Policy', 'strict-oriin-when-cross-oriin');
     next();
   });
 
   // Malicious Content / Anti-Judol & Anti-Phishing Guard
   const MALICIOUS_PATTERNS = [
     /\b(slot|gacor|maxwin|pragmatic|zeus|olympus|sweet\s*bonanza|mahjong\s*ways|rtp\s*live|poker\s*online|togel|casino|kasino|judi|taruhan|sbobet|bandar\s*judi|agen\s*slot|scatter\s*hitam|depo\s*pulsa|bonus\s*new\s*member|bet\s*100|bet88|mpo|bocoran\s*admin\s*jarwo)\b/i,
-    /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi,
-    /javascript\s*:/gi,
-    /vbscript\s*:/gi,
-    /data\s*:\s*text\/html/gi,
-    /onload\s*=\s*['"]?[^'">]+['"]?/gi,
-    /onerror\s*=\s*['"]?[^'">]+['"]?/gi,
-    /onclick\s*=\s*['"]?[^'">]+['"]?/gi,
-    /<iframe\b[^>]*>/gi,
-    /<object\b[^>]*>/gi,
-    /<embed\b[^>]*>/gi,
-    /eval\s*\(/gi,
-    /\b(klaim-hadiah-gratis|verifikasi-akun-bank|dana-kaget-palsu|login-bca-palsu)\b/i
+    /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/i,
+    /javascript\s*:/i,
+    /vbscript\s*:/i,
+    /data\s*:\s*text\/html/i,
+    /onload\s*=\s*['"]?[^'">]+['"]?/i,
+    /onerror\s*=\s*['"]?[^'">]+['"]?/i,
+    /onclick\s*=\s*['"]?[^'">]+['"]?/i,
+    /<iframe\b[^>]*>/i,
+    /<object\b[^>]*>/i,
+    /<embed\b[^>]*>/i,
+    /eval\s*\(/i,
+    /\b(klaim-hadiah-gratis|verifikasi-akun-bank|dana-kaget-palsu|loin-bca-palsu)\b/i
   ];
 
   const inspectPayloadForMaliciousContent = (obj: any): { isMalicious: boolean; reason?: string } => {
@@ -249,7 +249,7 @@ async function startServer() {
         res.json({ success: true, data: null });
       }
     } catch (err) {
-      res.status(500).json({ success: false });
+      console.error("Admin settings error:", err); res.status(500).json({ success: false, error: err.message });
     }
   });
 
@@ -267,7 +267,7 @@ async function startServer() {
   });
 
   // Admin Authentication
-  app.post('/api/admin/login', (req, res) => {
+  app.post('/api/admin/loin', (req, res) => {
     const { email, password, twoFactor } = req.body;
     if (email === 'admin@portaluang.id' && password === 'Admin@12') {
       const totp = getTotp();
@@ -323,7 +323,7 @@ async function startServer() {
       const result = await pool.query('SELECT data FROM app_state WHERE id = $1', ['marketing_settings']);
       res.json({ success: true, data: result.rows.length > 0 ? result.rows[0].data : {} });
     } catch (err) {
-      res.status(500).json({ success: false });
+      console.error("Admin settings error:", err); res.status(500).json({ success: false, error: err.message });
     }
   });
 
@@ -344,7 +344,7 @@ async function startServer() {
       );
       res.json({ success: true });
     } catch (err) {
-      res.status(500).json({ success: false });
+      console.error("Admin settings error:", err); res.status(500).json({ success: false, error: err.message });
     }
   });
 
@@ -371,7 +371,7 @@ async function startServer() {
       res.json({ success: true, users });
     } catch (err: any) {
       console.error('Failed to get users:', err);
-      res.status(500).json({ success: false });
+      console.error("Admin settings error:", err); res.status(500).json({ success: false, error: err.message });
     }
   });
 
@@ -386,18 +386,18 @@ async function startServer() {
       res.json({ success: true });
     } catch (err: any) {
       console.error('Failed to track user:', err);
-      res.status(500).json({ success: false });
+      console.error("Admin settings error:", err); res.status(500).json({ success: false, error: err.message });
     }
   });
 
-  app.post('/api/admin/track-login', async (req, res) => {
+  app.post('/api/admin/track-loin', async (req, res) => {
     try {
-      const { email, lastLoginAt } = req.body;
+      const { email, lastLoinAt } = req.body;
       const key = 'user_profile_' + email;
       const result = await pool.query("SELECT data FROM app_state WHERE id = $1", [key]);
       if (result.rows.length > 0) {
         const profile = result.rows[0].data;
-        profile.lastLoginAt = lastLoginAt;
+        profile.lastLoinAt = lastLoinAt;
         await pool.query(
           `UPDATE app_state SET data = $1, updated_at = NOW() WHERE id = $2`,
           [JSON.stringify(profile), key]
@@ -405,8 +405,8 @@ async function startServer() {
       }
       res.json({ success: true });
     } catch (err: any) {
-      console.error('Failed to track login:', err);
-      res.status(500).json({ success: false });
+      console.error('Failed to track loin:', err);
+      console.error("Admin settings error:", err); res.status(500).json({ success: false, error: err.message });
     }
   });
 
@@ -422,7 +422,7 @@ async function startServer() {
           appVersion: result.rows[0].data.appVersion || '1.0.0',
           supportEmail: result.rows[0].data.supportEmail || 'support@portaluang.id',
           aiName: result.rows[0].data.aiName || 'Portal Uang Advisor',
-          aiRoleTitle: result.rows[0].data.aiRoleTitle || 'AI Wealth Strategist',
+          aiRoleTitle: result.rows[0].data.aiRoleTitle || 'AI Wealth Strateist',
           aiTone: result.rows[0].data.aiTone || 'professional_supportive',
           aiSystemPrompt: result.rows[0].data.aiSystemPrompt || '',
           heroTitle1: result.rows[0].data.heroTitle1 || 'Tinggalkan Spreadsheet Rumit.',
@@ -438,7 +438,7 @@ async function startServer() {
           appVersion: '1.0.0',
           supportEmail: 'support@portaluang.id',
           aiName: 'Portal Uang Advisor',
-          aiRoleTitle: 'AI Wealth Strategist',
+          aiRoleTitle: 'AI Wealth Strateist',
           aiTone: 'professional_supportive',
           aiSystemPrompt: '',
           heroTitle1: 'Tinggalkan Spreadsheet Rumit.',
@@ -448,7 +448,7 @@ async function startServer() {
         });
       }
     } catch (err) {
-      res.status(500).json({ success: false });
+      console.error("Admin settings error:", err); res.status(500).json({ success: false, error: err.message });
     }
   });
 
@@ -461,7 +461,7 @@ async function startServer() {
       const result = await pool.query('SELECT data FROM app_state WHERE id = $1', ['content_' + pageId]);
       res.json({ success: true, data: result.rows.length > 0 ? result.rows[0].data : null });
     } catch (err) {
-      res.status(500).json({ success: false });
+      console.error("Admin settings error:", err); res.status(500).json({ success: false, error: err.message });
     }
   });
 
@@ -484,7 +484,7 @@ async function startServer() {
       );
       res.json({ success: true });
     } catch (err) {
-      res.status(500).json({ success: false });
+      console.error("Admin settings error:", err); res.status(500).json({ success: false, error: err.message });
     }
   });
 
@@ -495,7 +495,7 @@ async function startServer() {
       const result = await pool.query("SELECT data FROM app_state WHERE id = 'blog_posts'");
       res.json({ success: true, data: result.rows.length > 0 ? result.rows[0].data : [] });
     } catch (err) {
-      res.status(500).json({ success: false });
+      console.error("Admin settings error:", err); res.status(500).json({ success: false, error: err.message });
     }
   });
 
@@ -513,7 +513,7 @@ async function startServer() {
       );
       res.json({ success: true });
     } catch (err) {
-      res.status(500).json({ success: false });
+      console.error("Admin settings error:", err); res.status(500).json({ success: false, error: err.message });
     }
   });
 
@@ -528,7 +528,7 @@ async function startServer() {
         res.json({ success: true, data: [] });
       }
     } catch (err) {
-      res.status(500).json({ success: false });
+      console.error("Admin settings error:", err); res.status(500).json({ success: false, error: err.message });
     }
   });
 
@@ -546,7 +546,7 @@ async function startServer() {
       );
       res.json({ success: true });
     } catch (err) {
-      res.status(500).json({ success: false });
+      console.error("Admin settings error:", err); res.status(500).json({ success: false, error: err.message });
     }
   });
 
@@ -555,7 +555,7 @@ async function startServer() {
       const result = await pool.query("SELECT data FROM app_state WHERE id = 'faqs'");
       res.json({ success: true, data: result.rows.length > 0 ? result.rows[0].data : [] });
     } catch (err) {
-      res.status(500).json({ success: false });
+      console.error("Admin settings error:", err); res.status(500).json({ success: false, error: err.message });
     }
   });
 
@@ -573,7 +573,7 @@ async function startServer() {
       );
       res.json({ success: true });
     } catch (err) {
-      res.status(500).json({ success: false });
+      console.error("Admin settings error:", err); res.status(500).json({ success: false, error: err.message });
     }
   });
 
@@ -582,7 +582,7 @@ async function startServer() {
       const result = await pool.query('SELECT data FROM app_state WHERE id = $1', ['global_settings']);
       res.json({ success: true, data: result.rows.length > 0 ? result.rows[0].data : {} });
     } catch (err) {
-      res.status(500).json({ success: false });
+      console.error("Admin settings error:", err); res.status(500).json({ success: false, error: err.message });
     }
   });
 
@@ -603,7 +603,7 @@ async function startServer() {
       );
       res.json({ success: true });
     } catch (err) {
-      res.status(500).json({ success: false });
+      console.error("Admin settings error:", err); res.status(500).json({ success: false, error: err.message });
     }
   });
 
@@ -650,7 +650,7 @@ async function startServer() {
       const { mode, payload, userPrompt, userId } = req.body;
       
       if (!userId) {
-        return res.status(400).json({ success: false, error: 'Silakan login terlebih dahulu untuk menggunakan fitur AI.' });
+        return res.status(400).json({ success: false, error: 'Silakan loin terlebih dahulu untuk menggunakan fitur AI.' });
       }
 
       const today = new Date().toISOString().split('T')[0];
@@ -687,7 +687,7 @@ async function startServer() {
 
       // Fetch dynamic AI customization from global_settings
       let currentAiName = 'Portal Uang Advisor';
-      let currentAiRole = 'AI Wealth Strategist';
+      let currentAiRole = 'AI Wealth Strateist';
       let currentAiTone = 'professional_supportive';
       let customSystemPrompt = '';
 
@@ -715,7 +715,7 @@ async function startServer() {
 
       let systemInstruction = `Anda adalah ${currentAiName}, ${currentAiRole} berpengalaman di dalam aplikasi keuangan Portal Uang.
 ${toneInstruction}
-Topik utama: penganggaran berbasis nol (Zero-Based Budgeting), alokasi gaji bulanan, strategi pelunasan hutang (Snowball vs Avalanche), pos sinking fund (mudik, pajak, servis), serta pertumbuhan kekayaan bersih.
+Topik utama: penganggaran berbasis nol (Zero-Based Budgeting), alokasi gaji bulanan, stratei pelunasan hutang (Snowball vs Avalanche), pos sinking fund (mudik, pajak, servis), serta pertumbuhan kekayaan bersih.
 ${customSystemPrompt ? `Instruksi khusus tambahan dari admin:\n${customSystemPrompt}\n` : ''}
 Selalu format jawaban Anda secara rapi menggunakan Markdown, dengan angka tercetak tebal dalam Rupiah (Rp), poin-poin terstruktur, dan langkah tindakan konkret selanjutnya. Jawablah SELALU dalam Bahasa Indonesia.`;
 
@@ -727,7 +727,7 @@ ${JSON.stringify(payload, null, 2)}
 
 Berikan:
 1. Skor Kesehatan Finansial (1-100) dan 3 kekuatan utama keuangan pengguna.
-2. Deteksi Kebocoran & Anomali (identifikasi kategori dengan pengeluaran terlalu tinggi atau dana belum dialokasikan).
+2. Deteksi Kebocoran & Anomali (identifikasi kategori dengan pengeluaran terlalu tingi atau dana belum dialokasikan).
 3. Optimasi Alokasi Berbasis Nol: Saran spesifik untuk meningkatkan arus kas atau alokasi sinking fund (seperti mudik, servis motor, dll).
 4. 3 Langkah Tindakan Paling Penting untuk bulan ini.`;
       } else if (mode === 'parse_statement') {
@@ -737,11 +737,11 @@ Berikan:
 Hasilkan array JSON objek yang valid dengan kunci: "date" (YYYY-MM-DD), "payee", "amount" (angka nominal Rupiah), "category", "type" ('expense'|'income'), "notes".
 Kembalikan HANYA JSON mentah tanpa komentar tambahan atau tanda backtick markdown di luar JSON.`;
       } else if (mode === 'debt_strategy') {
-        prompt = `Analisis kewajiban hutang berikut dan evaluasi strategi pelunasan Snowball vs Avalanche:
+        prompt = `Analisis kewajiban hutang berikut dan evaluasi stratei pelunasan Snowball vs Avalanche:
 ${JSON.stringify(payload, null, 2)}
 
 Pertanyaan/Konteks pengguna: ${userPrompt || 'Bagaimana cara melunasi hutang ini paling cepat dengan bunga paling hemat?'}
-Berikan panduan pelunasan langkah demi langkah yang jelas dengan simulasi matematika dan motivasi psikologis dalam Bahasa Indonesia.`;
+Berikan panduan pelunasan langkah demi langkah yang jelas dengan simulasi matematika dan motivasi psikolois dalam Bahasa Indonesia.`;
       } else {
         prompt = `Pertanyaan pengguna: ${userPrompt}\n\nKonteks gambaran umum keuangan: ${JSON.stringify(payload || {}, null, 2)}`;
       }
@@ -762,7 +762,7 @@ Berikan panduan pelunasan langkah demi langkah yang jelas dengan simulasi matema
       let errorMessage = err?.message || 'Gagal menghasilkan wawasan AI.';
       
       if (errorMessage.includes('503') || errorMessage.includes('high demand') || errorMessage.includes('UNAVAILABLE')) {
-        errorMessage = 'Server AI saat ini sedang mengalami antrean tinggi. Mohon coba beberapa saat lagi.';
+        errorMessage = 'Server AI saat ini sedang mengalami antrean tingi. Mohon coba beberapa saat lai.';
       }
 
       res.status(500).json({
@@ -866,7 +866,7 @@ Berikan panduan pelunasan langkah demi langkah yang jelas dengan simulasi matema
             if (goldUsd?.regularMarketPrice && usdIdr?.regularMarketPrice) {
               // 1 Troy Ounce = 31.1034768 gram
               const pricePerGramIDR = (goldUsd.regularMarketPrice * usdIdr.regularMarketPrice) / 31.1034768;
-              // Emas fisik Antam memiliki margin/premium (spread cetak & distribusi) sekitar ~2.5% di atas spot price
+              // Emas fisik Antam memiliki marin/premium (spread cetak & distribusi) sekitar ~2.5% di atas spot price
               lmPrice = Math.round(pricePerGramIDR * 1.025);
             }
           } else if (ticker === 'PERAK') {
@@ -1076,7 +1076,7 @@ Berikan panduan pelunasan langkah demi langkah yang jelas dengan simulasi matema
       });
     } catch (err: any) {
       console.error('Error creating Duitku invoice:', err);
-      res.status(500).json({ success: false, error: 'Gagal membuat tagihan pembayaran Duitku: ' + err.message });
+      res.status(500).json({ success: false, error: 'Gagal membuat taihan pembayaran Duitku: ' + err.message });
     }
   });
 
@@ -1252,7 +1252,7 @@ Berikan panduan pelunasan langkah demi langkah yang jelas dengan simulasi matema
         .update(`${config.merchantCode}${tx.amount}${merchantOrderId}${config.apiKey}`)
         .digest('hex');
 
-      // Trigger standard webhook logic
+      // Trigger standard webhook loic
       const simReq = {
         body: {
           merchantCode: config.merchantCode,
@@ -1693,7 +1693,7 @@ Berikan panduan pelunasan langkah demi langkah yang jelas dengan simulasi matema
       };
 
       // Flow 1: /start <token>
-      if (text.startsWith('/start')) {
+      if (text && text.startsWith('/start')) {
         const parts = text.split(/\s+/);
         if (parts.length > 1) {
           const token = parts[1].trim();
@@ -1763,7 +1763,7 @@ Berikan panduan pelunasan langkah demi langkah yang jelas dengan simulasi matema
               `🎉 <b>Akun Portal Uang Berhasil Terhubung!</b>\n\n` +
               `Halo <b>${firstName}</b> (@${username || 'user'}), akun Anda (<code>${session.userId}</code>) kini telah tersinkronisasi secara real-time.\n\n` +
               `🔔 <b>Layanan Notifikasi Aktif:</b>\n` +
-              `• ⏰ Pengingat Jatuh Tempo Tagihan & Cicilan\n` +
+              `• ⏰ Peningat Jatuh Tempo Taihan & Cicilan\n` +
               `• 🎯 Peringatan Batas Anggaran Zero-Based Budgeting\n` +
               `• 📈 Ringkasan & Wawasan Finansial Berkala\n\n` +
               `💡 <i>Ketik /bantuan untuk melihat daftar perintah bot atau /status untuk melihat status koneksi.</i>`;
@@ -1780,7 +1780,7 @@ Berikan panduan pelunasan langkah demi langkah yang jelas dengan simulasi matema
           // /start without token
           const welcomeMsg = 
             `👋 <b>Selamat Datang di Bot Portal Uang!</b>\n\n` +
-            `Bot ini bertugas mengirimkan notifikasi pengingat tagihan dan ringkasan finansial langsung ke Telegram Anda.\n\n` +
+            `Bot ini bertugas menirimkan notifikasi peningat taihan dan ringkasan finansial langsung ke Telegram Anda.\n\n` +
             `<b>Cara Menghubungkan:</b>\n` +
             `1. Buka aplikasi web Portal Uang\n` +
             `2. Masuk ke menu <b>Pengaturan</b>\n` +
@@ -1810,7 +1810,7 @@ Berikan panduan pelunasan langkah demi langkah yang jelas dengan simulasi matema
             `• User ID: <code>${linkedUserEmail}</code>\n` +
             `• Telegram Chat ID: <code>${chatId}</code>\n` +
             `• Notifikasi: <b>Aktif</b>\n\n` +
-            `Semua pengingat tagihan dan alarm anggaran akan dikirimkan ke chat ini.`
+            `Semua peningat taihan dan alarm anggaran akan dikirimkan ke chat ini.`
           );
         } else {
           await replyMessage(
@@ -1828,7 +1828,7 @@ Berikan panduan pelunasan langkah demi langkah yang jelas dengan simulasi matema
           `🤖 <b>Daftar Perintah Bot Portal Uang:</b>\n\n` +
           `• /start - Memulai bot & panduan menghubungkan\n` +
           `• /status - Cek status keterhubungan akun Anda\n` +
-          `• /tagihan - Cek tagihan jatuh tempo terdekat\n` +
+          `• /taihan - Cek taihan jatuh tempo terdekat\n` +
           `• /bantuan - Menampilkan pesan bantuan ini\n\n` +
           `Aplikasi Web: <a href="https://auraledger.app">Portal Uang Finance OS</a>`;
 
@@ -1836,8 +1836,8 @@ Berikan panduan pelunasan langkah demi langkah yang jelas dengan simulasi matema
         return res.status(200).json({ ok: true });
       }
 
-      // Flow 4: /tagihan
-      if (text === '/tagihan') {
+      // Flow 4: /taihan
+      if (text === '/taihan') {
         // Find linked user
         let linkedUserEmail = '';
         for (const [_, session] of telegramLinkStore.entries()) {
@@ -1857,13 +1857,13 @@ Berikan panduan pelunasan langkah demi langkah yang jelas dengan simulasi matema
         const bills = userData?.bills || [];
 
         if (bills.length === 0) {
-          await replyMessage(`📅 <b>Tagihan:</b> Belum ada daftar tagihan yang tersimpan di akun Anda.`);
+          await replyMessage(`📅 <b>Taihan:</b> Belum ada daftar taihan yang tersimpan di akun Anda.`);
         } else {
           const unpaidBills = bills.filter((b: any) => !b.isPaid);
           if (unpaidBills.length === 0) {
-            await replyMessage(`🎉 <b>Luar biasa!</b> Seluruh tagihan Anda bulan ini sudah lunas.`);
+            await replyMessage(`🎉 <b>Luar biasa!</b> Seluruh taihan Anda bulan ini sudah lunas.`);
           } else {
-            let listText = `📋 <b>Daftar Tagihan Belum Lunas (${unpaidBills.length}):</b>\n\n`;
+            let listText = `📋 <b>Daftar Taihan Belum Lunas (${unpaidBills.length}):</b>\n\n`;
             unpaidBills.forEach((b: any, i: number) => {
               const amountStr = Number(b.amount || 0).toLocaleString('id-ID');
               listText += `${i + 1}. <b>${b.name}</b>: Rp ${amountStr} (Jatuh tempo: ${b.dueDate})\n`;
@@ -1886,7 +1886,7 @@ Berikan panduan pelunasan langkah demi langkah yang jelas dengan simulasi matema
     }
   };
 
-  // Register Webhook on both /telegram/webhook and /api/telegram/webhook
+  // Reister Webhook on both /telegram/webhook and /api/telegram/webhook
   app.post('/telegram/webhook', express.json(), handleTelegramWebhook);
   app.post('/api/telegram/webhook', express.json(), handleTelegramWebhook);
   app.get('/api/telegram/webhook', (req, res) => res.send('Telegram Webhook Endpoint is Active'));
