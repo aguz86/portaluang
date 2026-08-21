@@ -47,20 +47,21 @@ export const AdminPayments: React.FC = () => {
     fetchTransactions();
   }, []);
 
-  const handleSimulatePayment = async (merchantOrderId: string) => {
+  const handleCheckStatus = async (merchantOrderId: string) => {
     setActionLoading(merchantOrderId);
     try {
-      const res = await fetch('/api/payment/duitku/simulate-sandbox-pay', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ merchantOrderId })
-      });
+      const res = await fetch(`/api/payment/duitku/check-status/${merchantOrderId}`);
       const data = await res.json();
       if (data.success) {
+        if (data.isPaid) {
+          alert('Pembayaran telah lunas!');
+        } else {
+          alert('Pembayaran belum lunas atau masih tertunda.');
+        }
         await fetchTransactions();
       }
     } catch (err) {
-      console.error('Simulation failed', err);
+      console.error('Check status failed', err);
     } finally {
       setActionLoading(null);
     }
@@ -227,13 +228,13 @@ export const AdminPayments: React.FC = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       {tx.status === 'PENDING' && (
                         <button
-                          onClick={() => handleSimulatePayment(tx.merchantOrderId)}
+                          onClick={() => handleCheckStatus(tx.merchantOrderId)}
                           disabled={actionLoading === tx.merchantOrderId}
-                          className="inline-flex items-center gap-1 px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-lg text-xs font-bold transition-colors"
-                          title="Simulasikan Webhook Lunas Duitku"
+                          className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-lg text-xs font-bold transition-colors"
+                          title="Cek Status Pembayaran ke Duitku"
                         >
-                          <Play className="w-3 h-3" />
-                          {actionLoading === tx.merchantOrderId ? 'Memproses...' : 'Simulasi Bayar'}
+                          <RefreshCw className="w-3 h-3" />
+                          {actionLoading === tx.merchantOrderId ? 'Mengecek...' : 'Cek Status'}
                         </button>
                       )}
                       {tx.status === 'SUCCESS' && (
