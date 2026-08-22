@@ -56,7 +56,7 @@ export const NetWorthView: React.FC<NetWorthViewProps> = ({
             <h2 className="text-xl font-bold text-stone-100">Grafik & Rekap Kekayaan Bersih (Net Worth)</h2>
           </div>
           <p className="text-xs text-stone-400 max-w-2xl">
-            Pantau pertumbuhan total kekayaan Anda dari waktu ke waktu dengan mencatat rekap bulanan aset dikurangi kewajiban/utang.
+            Pantau pertumbuhan total kekayaan Kamu dari waktu ke waktu dengan mencatat rekap bulanan aset dikurangi kewajiban/utang.
           </p>
         </div>
 

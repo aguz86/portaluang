@@ -78,7 +78,8 @@ export const GUIDE_CHAPTERS: GuideTopic[] = [
     content: [
       'Metode Debt Avalanche mengurutkan hutang berdasarkan tingkat bunga tertinggi (APR/bunga tertinggi lebih dulu). Ini menghemat total pembayaran bunga dan mempercepat pelunasan secara matematis.',
       'Metode Debt Snowball mengurutkan hutang berdasarkan saldo terkecil lebih dulu. Melunasi hutang kecil memberikan kemenangan psikologis cepat yang meningkatkan kedisiplinan.',
-      'Portal Uang memiliki Laboratorium Pelunasan Hutang interaktif yang menghitung tanggal pasti lunas serta penghematan bunga dari kedua metode.'
+      'Portal Uang memiliki Laboratorium Pelunasan Hutang interaktif yang menghitung tanggal pasti lunas serta penghematan bunga dari kedua metode.',
+      'Sesuai dengan standar perbankan di Indonesia (pasca-relaksasi pandemi), apabila Anda tidak memasukkan secara spesifik nominal cicilan minimum, sistem kami akan secara otomatis memproyeksikan pembayaran minimum sebesar 6% dari sisa saldo hutang kartu kredit atau pinjaman Anda.'
     ],
     keyTakeaways: [
       'Metode Avalanche menghemat uang paling banyak dari penghematan bunga.',

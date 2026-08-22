@@ -45,7 +45,7 @@ export default function Login() {
               <Lock className="w-6 h-6" />
             </div>
             <h2 className="text-2xl font-bold text-white mb-2">Selamat Datang Kembali</h2>
-            <p className="text-stone-400 text-sm">Masuk ke akun {settings.appName} Anda.</p>
+            <p className="text-stone-400 text-sm">Masuk ke akun {settings.appName} Kamu.</p>
           </div>
           
           {error && (
@@ -131,7 +131,7 @@ export default function Login() {
                     </span>
                   </div>
                   <p className="text-[11px] text-stone-400 mt-0.5 leading-relaxed">
-                    Sesi login Anda akan tersimpan aman sehingga Anda tidak perlu memasukkan password berulang kali.
+                    Sesi login Kamu akan tersimpan aman sehingga Kamu tidak perlu memasukkan password berulang kali.
                   </p>
                 </div>
               </label>

@@ -192,8 +192,8 @@ async function startServer() {
   // Initialize Gemini server-side client lazily/safely
   const getGeminiClient = () => {
     const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      throw new Error('GEMINI_API_KEY environment variable is missing.');
+    if (!apiKey || apiKey.trim() === '') {
+      return null;
     }
     return new GoogleGenAI({
       apiKey,
@@ -294,9 +294,9 @@ async function startServer() {
   });
 
   // Admin Authentication
-  app.post('/api/admin/loin', (req, res) => {
+  app.post('/api/admin/login', (req, res) => {
     const { email, password, twoFactor } = req.body;
-    if (email === 'admin@portaluang.id' && password === 'Admin@12') {
+    if (email === 'admin@portaluang.id' && password === 'Admin@123') {
       const totp = getTotp();
       const delta = totp.validate({ token: twoFactor, window: 1 });
       const isTotpValid = delta !== null;
@@ -683,10 +683,61 @@ async function startServer() {
     }
   });
 
+  // Helper for Hybrid Mode (Smart Algorithmic Engine)
+  const generateSmartFallback = (mode: string, payload: any, userPrompt?: string): string => {
+    let response = "";
+    if (mode === 'budget_audit') {
+      const unassigned = payload?.unassignedCash || 0;
+      const categories = payload?.budgetCategories || [];
+      let totalAllocated = 0;
+      let totalSpent = 0;
+      
+      categories.forEach((c: any) => {
+        totalAllocated += Number(c.allocated || 0);
+        totalSpent += Number(c.spent || 0);
+      });
+      
+      let highestCategory = categories.length > 0 ? categories.reduce((prev: any, current: any) => ((current.spent || 0) > (prev.spent || 0)) ? current : prev, {spent: 0, name: 'Tidak ada'}) : null;
+      
+      response = "🤖 **[Mode Algoritma Cerdas]**\n\nBerdasarkan analisis algoritma otomatis terhadap profil keuangan Kamu:\n\n";
+      response += `**1. Status Arus Kas:** Total alokasi bulan ini adalah Rp ${totalAllocated.toLocaleString('id-ID')} dengan realisasi pengeluaran Rp ${totalSpent.toLocaleString('id-ID')}.\n`;
+      if (unassigned > 0) {
+        response += `**2. Dana Menganggur:** Terdapat Rp ${unassigned.toLocaleString('id-ID')} yang belum dialokasikan (Zero-Based Budgeting belum sempurna). Segera masukkan dana ini ke pos Sinking Fund atau Tabungan.\n`;
+      } else if (unassigned < 0) {
+        response += `**2. Defisit Anggaran:** Peringatan! Anggaran Kamu minus Rp ${Math.abs(unassigned).toLocaleString('id-ID')}. Kurangi alokasi di kategori keinginan (Wants).\n`;
+      } else {
+        response += `**2. Zero-Based Budgeting:** Sempurna! Setiap rupiah dari pendapatan Kamu sudah memiliki tugas. Pertahankan disiplin ini.\n`;
+      }
+      
+      if (highestCategory && highestCategory.spent > 0) {
+        response += `**3. Pengeluaran Terbesar:** Kategori **${highestCategory.name}** mencatatkan pengeluaran tertinggi (Rp ${highestCategory.spent.toLocaleString('id-ID')}). Evaluasi kembali apakah ini kebutuhan primer atau bisa ditekan bulan depan.\n`;
+      }
+    } else if (mode === 'debt_strategy') {
+      const accounts = payload?.accounts || [];
+      const debtAccounts = accounts.filter((a: any) => a.type === 'debt' || a.type === 'credit');
+      
+      response = "🤖 **[Mode Algoritma Cerdas]**\n\n";
+      if (debtAccounts.length === 0) {
+        response += "Selamat! Dari data yang ada, Kamu tidak memiliki catatan hutang. Tetap jaga kesehatan arus kas dan fokus perbesar tabungan investasi.";
+      } else {
+        let totalDebt = debtAccounts.reduce((acc: number, curr: any) => acc + Math.abs(Number(curr.balance || 0)), 0);
+        response += `Berdasarkan kalkulasi sistem, total kewajiban hutang Kamu saat ini adalah **Rp ${totalDebt.toLocaleString('id-ID')}**.\n\n`;
+        response += "**Rekomendasi Strategi Pelunasan:**\n";
+        response += "- **Metode Snowball:** Jika Kamu butuh motivasi psikologis, lunasi hutang dengan nominal terkecil lebih dulu. Begitu lunas, gunakan uang cicilannya untuk menggempur hutang berikutnya.\n";
+        response += "- **Metode Avalanche:** Jika Kamu ingin menghemat total bunga (paling matematis), urutkan hutang berdasarkan suku bunga tertinggi dan lunasi lebih dulu.\n";
+      }
+    } else if (mode === 'parse_statement') {
+      response = `[      \n  {"date": "2026-08-01", "payee": "Mode Ekstraksi Offline", "amount": 0, "category": "Lainnya", "type": "expense", "notes": "Sistem sedang dalam mode algoritma karena limit AI tercapai. Mohon catat transaksi secara manual."}\n]`;
+    } else {
+      response = "🤖 **[Mode Algoritma Cerdas]**\n\nSistem saat ini berjalan dalam mode algoritma cepat (Smart Rule-Based). Fitur tanya jawab bebas (Custom Prompt) membutuhkan koneksi AI penuh. Silakan coba beberapa saat lagi ketika kuota harian kembali tersedia.";
+    }
+    return response;
+  };
+
   // API Route: AI Financial Advisor & Smart Insights
   app.post('/api/ai-insights', async (req, res) => {
+    const { mode, payload, userPrompt, userId } = req.body;
     try {
-      const { mode, payload, userPrompt, userId } = req.body;
       
       if (!userId) {
         return res.status(400).json({ success: false, error: 'Silakan loin terlebih dahulu untuk menggunakan fitur AI.' });
@@ -723,6 +774,13 @@ async function startServer() {
       );
 
       const ai = getGeminiClient();
+
+      if (!ai) {
+        return res.json({
+          success: true,
+          response: generateSmartFallback(mode, payload, userPrompt)
+        });
+      }
 
       // Fetch dynamic AI customization from global_settings
       let currentAiName = 'Portal Uang Advisor';
@@ -798,15 +856,12 @@ Berikan panduan pelunasan langkah demi langkah yang jelas dengan simulasi matema
       res.json({ success: true, response: textOutput });
     } catch (err: any) {
       console.error('Gemini API Error:', err);
-      let errorMessage = err?.message || 'Gagal menghasilkan wawasan AI.';
       
-      if (errorMessage.includes('503') || errorMessage.includes('high demand') || errorMessage.includes('UNAVAILABLE')) {
-        errorMessage = 'Server AI saat ini sedang mengalami antrean tingi. Mohon coba beberapa saat lai.';
-      }
-
-      res.status(500).json({
-        success: false,
-        error: errorMessage,
+      // HYBRID FALLBACK: If Gemini API fails (quota limit 429, timeout, or 503)
+      // we silently switch to the smart algorithmic engine so the user still gets a response.
+      return res.json({
+        success: true,
+        response: generateSmartFallback(mode, payload, userPrompt)
       });
     }
   });

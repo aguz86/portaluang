@@ -111,7 +111,7 @@ export const SinkingFundsView: React.FC<SinkingFundsViewProps> = ({
               <h2 className="text-xl font-bold text-stone-100">Manajer Pos Sinking Fund (Dana Terencana)</h2>
             </div>
             <p className="text-xs text-stone-400 max-w-2xl">
-              Cegah lonjakan pengeluaran tahunan (Mudik Lebaran, Pajak Kendaraan, Kurban, Liburan) agar tidak merusak anggaran bulanan Anda dengan mencicilnya secara teratur.
+              Cegah lonjakan pengeluaran tahunan (Mudik Lebaran, Pajak Kendaraan, Kurban, Liburan) agar tidak merusak anggaran bulanan Kamu dengan mencicilnya secara teratur.
             </p>
           </div>
 

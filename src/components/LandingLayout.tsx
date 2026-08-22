@@ -62,7 +62,7 @@ export const LandingLayout: React.FC<{ children: React.ReactNode }> = ({ childre
                 {'PU'}</div>
               <span className="font-extrabold text-base text-stone-100">{settings.appName}</span>
             </div>
-            <p className="text-stone-400 text-sm">Personal Finance OS yang membantu Anda mengelola uang dengan cerdas.</p>
+            <p className="text-stone-400 text-sm">Personal Finance OS yang membantu Kamu mengelola uang dengan cerdas.</p>
 
             <div className="flex items-center gap-4 mt-6">
               {socials.whatsapp && isSafeUrl(socials.whatsapp) && (

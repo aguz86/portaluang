@@ -23,7 +23,7 @@ interface InstallAppModalProps {
 export const InstallAppModal: React.FC<InstallAppModalProps> = ({ pwa, onClose }) => {
   if (!pwa.showModal) return null;
 
-  const { platform, browser, promptInstall, isStandalone } = pwa;
+  const { platform, browser, promptInstall, isStandalone, hasDeferredPrompt } = pwa;
 
   const handleActionClick = async () => {
     if (platform === 'ios' || (browser === 'safari' && platform !== 'android')) {
@@ -218,7 +218,7 @@ export const InstallAppModal: React.FC<InstallAppModalProps> = ({ pwa, onClose }
                     2
                   </div>
                   <div className="text-[11px] sm:text-xs leading-relaxed">
-                    Atau klik ikon install <Download className="w-3 h-3 inline text-cyan-400 mx-0.5" /> di ujung kanan Address Bar browser Anda.
+                    Atau klik ikon install <Download className="w-3 h-3 inline text-cyan-400 mx-0.5" /> di ujung kanan Address Bar browser Kamu.
                   </div>
                 </div>
               </div>
@@ -229,7 +229,7 @@ export const InstallAppModal: React.FC<InstallAppModalProps> = ({ pwa, onClose }
 
         {/* Sticky Footer Action Bar */}
         <div className="px-5 sm:px-6 py-3.5 sm:py-4 border-t border-stone-800/80 bg-stone-900/95 backdrop-blur-md shrink-0 space-y-2 relative z-10">
-          {platform !== 'ios' ? (
+          {(platform !== 'ios' && hasDeferredPrompt) ? (
             <button
               onClick={handleActionClick}
               className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-stone-950 font-black text-sm flex items-center justify-center gap-2 transition-all shadow-lg shadow-amber-500/20 active:scale-[0.98]"

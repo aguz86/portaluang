@@ -111,9 +111,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <span className="text-stone-500 text-xs">•</span>
             <span className="text-stone-400 text-xs">{new Date().toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}</span>
           </div>
-          <h2 className="text-2xl font-bold text-stone-100 tracking-tight">Pusat Kendali Keuangan Anda</h2>
+          <h2 className="text-2xl font-bold text-stone-100 tracking-tight">Pusat Kendali Keuangan Kamu</h2>
           <p className="text-stone-400 text-sm mt-1 max-w-xl">
-            Kelola gaji bulanan, alokasi anggaran berbasis nol, pos sinking fund mudik & liburan, serta laju kekayaan bersih Anda secara mandiri.
+            Kelola gaji bulanan, alokasi anggaran berbasis nol, pos sinking fund mudik & liburan, serta laju kekayaan bersih Kamu secara mandiri.
           </p>
         </div>
 
@@ -319,7 +319,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           {/* Category Pie Chart Card */}
           <div className="bg-stone-900 border border-stone-800 rounded-2xl p-5 shadow-sm">
             <h3 className="font-bold text-stone-100 text-base mb-1">Rincian Pengeluaran Bulan Ini</h3>
-            <p className="text-xs text-stone-400 mb-4">Distribusi pos alokasi dana Anda</p>
+            <p className="text-xs text-stone-400 mb-4">Distribusi pos alokasi dana Kamu</p>
 
             {pieData.length > 0 ? (
               <div className="h-48 w-full flex items-center justify-center">

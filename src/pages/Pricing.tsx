@@ -16,7 +16,7 @@ export default function Pricing() {
             Transparan, Fleksibel, & Tanpa Biaya Tersembunyi
           </h1>
           <p className="text-base sm:text-lg text-stone-300 max-w-2xl mx-auto">
-            Pilih paket langganan yang paling tepat untuk Anda. Pengguna baru wajib memilih paket saat pendaftaran dan dapat menguji coba fitur lengkap dengan Free Trial 24 jam.
+            Pilih paket langganan yang paling tepat untuk Kamu. Pengguna baru wajib memilih paket saat pendaftaran dan dapat menguji coba fitur lengkap dengan Free Trial 24 jam.
           </p>
         </div>
         
@@ -123,7 +123,7 @@ export default function Pricing() {
           <Shield className="w-10 h-10 text-amber-400 mx-auto mb-3" />
           <h3 className="text-xl font-bold text-white mb-2">Bagaimana Cara Kerja Masa Aktif Langganan?</h3>
           <p className="text-sm text-stone-300 leading-relaxed mb-6">
-            Setiap paket memiliki durasi aktif yang dihitung secara presisi sejak waktu pendaftaran atau perpanjangan. Untuk paket <strong>Free Trial 24 Jam</strong>, Anda memiliki waktu 24 jam penuh sejak pendaftaran untuk mencoba semua fitur sebelum memutuskan untuk upgrade ke paket <strong>Bulanan (30 Hari)</strong>, <strong>6 Bulan (180 Hari)</strong>, atau <strong>1 Tahun (365 Hari)</strong>.
+            Setiap paket memiliki durasi aktif yang dihitung secara presisi sejak waktu pendaftaran atau perpanjangan. Untuk paket <strong>Free Trial 24 Jam</strong>, Kamu memiliki waktu 24 jam penuh sejak pendaftaran untuk mencoba semua fitur sebelum memutuskan untuk upgrade ke paket <strong>Bulanan (30 Hari)</strong>, <strong>6 Bulan (180 Hari)</strong>, atau <strong>1 Tahun (365 Hari)</strong>.
           </p>
           <Link 
             to="/register" 

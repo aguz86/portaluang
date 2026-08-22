@@ -6,7 +6,9 @@ import {
   Plus, 
   Trash2, 
   Flame, 
-  Snowflake
+  Snowflake,
+  Share2,
+  Trophy
 } from 'lucide-react';
 
 interface AccountsAndDebtViewProps {
@@ -74,6 +76,74 @@ export const AccountsAndDebtView: React.FC<AccountsAndDebtViewProps> = ({
   };
 
   // Debt Payoff Simulator Math
+  const simulatePayoff = (strategy: 'avalanche' | 'snowball', initialDebts: typeof debts, extra: number) => {
+    let currentDebts = initialDebts.map(d => ({
+      ...d,
+      balance: Math.abs(d.balance),
+      apr: d.apr || 0,
+      minPayment: d.minPayment || Math.max(Math.abs(d.balance) * 0.06, 50000) // Fallback: 6% or 50k
+    }));
+
+    // Fixed monthly commitment (Snowball/Avalanche rule: keep total payment same even when a debt drops off)
+    const fixedTotalMonthlyPayment = currentDebts.reduce((sum, d) => sum + d.minPayment, 0) + extra;
+
+    let totalInterestPaid = 0;
+    let months = 0;
+    const MAX_MONTHS = 360; // 30 years max to prevent infinite loops
+
+    while (currentDebts.length > 0 && months < MAX_MONTHS) {
+      months++;
+      
+      // Sort debts based on strategy target
+      currentDebts.sort((a, b) => {
+        if (strategy === 'avalanche') {
+          return b.apr - a.apr; // Highest interest first
+        } else {
+          return a.balance - b.balance; // Lowest balance first
+        }
+      });
+
+      // Distribute payments
+      let availableCash = fixedTotalMonthlyPayment;
+
+      // 1. Add monthly interest and pay minimums first
+      for (let i = 0; i < currentDebts.length; i++) {
+        const d = currentDebts[i];
+        const monthlyInterest = d.balance * (d.apr / 100 / 12);
+        d.balance += monthlyInterest;
+        totalInterestPaid += monthlyInterest;
+
+        // Pay minimum
+        const payment = Math.min(d.minPayment, d.balance);
+        d.balance -= payment;
+        availableCash -= payment;
+      }
+
+      // 2. Roll over remaining cash (extra + freed minimums) to target debt
+      for (let i = 0; i < currentDebts.length; i++) {
+        if (availableCash <= 0) break;
+        if (currentDebts[i].balance > 0) {
+          const payment = Math.min(availableCash, currentDebts[i].balance);
+          currentDebts[i].balance -= payment;
+          availableCash -= payment;
+        }
+      }
+
+      // Remove paid off debts
+      currentDebts = currentDebts.filter(d => d.balance > 0.01);
+    }
+    
+    return { months, totalInterest: totalInterestPaid };
+  };
+
+  const totalMinPayment = debts.reduce((sum, d) => sum + (d.minPayment || Math.max(Math.abs(d.balance) * 0.06, 50000)), 0);
+  const totalMonthlyDebtPool = totalMinPayment + extraPayment;
+
+  // Run simulations
+  const currentSim = simulatePayoff(payoffStrategy, debts, extraPayment);
+  const baselineSim = simulatePayoff(payoffStrategy, debts, 0); // No extra payment
+
+  // Sort debts for display based on the selected payoff strategy
   const sortedDebts = [...debts].sort((a, b) => {
     if (payoffStrategy === 'avalanche') {
       return (b.apr || 0) - (a.apr || 0); // Highest interest first
@@ -82,27 +152,23 @@ export const AccountsAndDebtView: React.FC<AccountsAndDebtViewProps> = ({
     }
   });
 
-  const totalMinPayment = debts.reduce((sum, d) => sum + (d.minPayment || 0), 0);
-  const totalMonthlyDebtPool = totalMinPayment + extraPayment;
-
-  // Simple payoff projection estimate
-  const averageApr = debts.length > 0 ? debts.reduce((sum, d) => sum + (d.apr || 0), 0) / debts.length : 12;
-  const monthlyRate = averageApr / 100 / 12;
-
-  // Months to pay off formula: n = -log(1 - (r * PV) / PMT) / log(1 + r)
-  let monthsToPayoff = 0;
-  if (totalMonthlyDebtPool > totalDebts * monthlyRate && totalDebts > 0) {
-    monthsToPayoff = Math.round(
-      -Math.log(1 - (monthlyRate * totalDebts) / totalMonthlyDebtPool) / Math.log(1 + monthlyRate)
-    );
-  } else {
-    monthsToPayoff = 60; // fallback default estimate
-  }
-
+  const monthsToPayoff = currentSim.months;
+  const totalInterestEstimate = currentSim.totalInterest;
+  
   const estimatedPayoffDate = new Date();
   estimatedPayoffDate.setMonth(estimatedPayoffDate.getMonth() + monthsToPayoff);
 
-  const totalInterestEstimate = Math.max(0, Math.round((monthsToPayoff * totalMonthlyDebtPool) - totalDebts));
+  const monthsSaved = Math.max(0, baselineSim.months - currentSim.months);
+  const interestSaved = Math.max(0, baselineSim.totalInterest - currentSim.totalInterest);
+
+  const handleSharePlan = () => {
+    const text = `Rencana Bebas Utang Saya!\nDengan strategi ${payoffStrategy === 'avalanche' ? 'Avalanche 🔥' : 'Snowball ❄️'} dan tambahan dana Rp ${extraPayment.toLocaleString('id-ID')}/bln, saya akan lunas dalam ${monthsToPayoff} bulan (hemat ${monthsSaved} bulan)! 💸✨\nDibuat via Portal Uang.`;
+    if (navigator.share) {
+      navigator.share({ title: 'Rencana Bebas Utang', text }).catch(() => {});
+    } else {
+      alert("Bagikan rencana ini:\n\n" + text);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -251,84 +317,113 @@ export const AccountsAndDebtView: React.FC<AccountsAndDebtViewProps> = ({
 
       {/* Debt Payoff Interactive Simulator */}
       {debts.length > 0 && (
-        <div className="bg-gradient-to-r from-stone-900 via-stone-850 to-stone-900 border border-amber-500/40 p-6 rounded-2xl space-y-5 shadow-md">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-2">
-                <Flame className="w-5 h-5 text-amber-400 animate-bounce" />
-                <h3 className="text-lg font-bold text-stone-100">Simulator Pelunasan Utang Interaktif</h3>
+        <div className="bg-gradient-to-br from-stone-900 to-stone-850 border border-amber-500/30 p-5 sm:p-6 rounded-2xl space-y-6 shadow-md relative overflow-hidden">
+          {/* Background decorative blur */}
+          <div className="absolute -top-10 -right-10 w-32 h-32 bg-amber-500/5 rounded-full blur-3xl pointer-events-none"></div>
+          
+          <div className="flex flex-col md:flex-row md:items-start justify-between gap-5 relative z-10">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-2">
+                <Flame className="w-5 h-5 text-amber-400 animate-pulse" />
+                <h3 className="text-lg font-bold text-stone-100">Simulator Pelunasan Utang</h3>
               </div>
-              <p className="text-xs text-stone-400 mt-1">
-                Simulasikan bagaimana dana ekstra bulanan dapat mempercepat pelunasan utang dan menghemat biaya bunga.
+              <p className="text-xs sm:text-sm text-stone-400 leading-relaxed max-w-lg">
+                Pilih strategi pelunasan dan lihat bagaimana tambahan dana ekstra setiap bulannya dapat membebaskan Anda dari utang lebih cepat dan menghemat biaya bunga.
               </p>
             </div>
 
             {/* Strategy Toggle */}
-            <div className="flex items-center bg-stone-950 p-1 rounded-xl border border-stone-800">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full mt-4">
+              {/* Avalanche Card */}
               <button
                 onClick={() => setPayoffStrategy('avalanche')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all ${
+                className={`p-4 rounded-xl border flex flex-col text-left relative overflow-hidden transition-all ${
                   payoffStrategy === 'avalanche'
-                    ? 'bg-amber-500 text-stone-950 shadow-sm'
-                    : 'text-stone-400 hover:text-stone-200'
+                    ? 'bg-rose-500/10 border-rose-500/50 ring-1 ring-rose-500/30'
+                    : 'bg-stone-950 border-stone-800 hover:border-stone-700'
                 }`}
               >
-                <Flame className="w-3.5 h-3.5" />
-                <span>Avalanche (Bunga Tertinggi)</span>
+                <div className={`absolute top-0 right-0 text-[10px] font-bold px-2.5 py-1 rounded-bl-lg transition-colors ${payoffStrategy === 'avalanche' ? 'bg-rose-500 text-white' : 'bg-stone-800 text-stone-400'}`}>Paling Hemat</div>
+                <div className="flex items-center gap-2 mb-1 mt-1">
+                  <Flame className={`w-5 h-5 ${payoffStrategy === 'avalanche' ? 'text-rose-500 animate-pulse' : 'text-stone-500'}`} />
+                  <span className={`font-black ${payoffStrategy === 'avalanche' ? 'text-rose-400' : 'text-stone-300'}`}>Avalanche</span>
+                </div>
+                <span className="text-[11px] text-stone-400 leading-tight">Fokus lunasi bunga tertinggi lebih dulu. Menghemat uang paling banyak.</span>
               </button>
 
+              {/* Snowball Card */}
               <button
                 onClick={() => setPayoffStrategy('snowball')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all ${
+                className={`p-4 rounded-xl border flex flex-col text-left relative overflow-hidden transition-all ${
                   payoffStrategy === 'snowball'
-                    ? 'bg-amber-500 text-stone-950 shadow-sm'
-                    : 'text-stone-400 hover:text-stone-200'
+                    ? 'bg-emerald-500/10 border-emerald-500/50 ring-1 ring-emerald-500/30'
+                    : 'bg-stone-950 border-stone-800 hover:border-stone-700'
                 }`}
               >
-                <Snowflake className="w-3.5 h-3.5" />
-                <span>Snowball (Saldo Terkecil)</span>
+                <div className={`absolute top-0 right-0 text-[10px] font-bold px-2.5 py-1 rounded-bl-lg transition-colors ${payoffStrategy === 'snowball' ? 'bg-emerald-500 text-stone-950' : 'bg-stone-800 text-stone-400'}`}>Paling Memotivasi</div>
+                <div className="flex items-center gap-2 mb-1 mt-1">
+                  <Snowflake className={`w-5 h-5 ${payoffStrategy === 'snowball' ? 'text-emerald-400' : 'text-stone-500'}`} />
+                  <span className={`font-black ${payoffStrategy === 'snowball' ? 'text-emerald-400' : 'text-stone-300'}`}>Snowball</span>
+                </div>
+                <span className="text-[11px] text-stone-400 leading-tight">Fokus lunasi saldo terkecil lebih dulu. Kemenangan cepat bikin semangat.</span>
               </button>
             </div>
           </div>
 
+          {/* Result Big Numbers */}
+          <div className="text-center py-6 sm:py-8 relative z-10 border-y border-stone-800/50">
+            <span className="text-[11px] uppercase tracking-widest text-stone-500 font-bold mb-1 block">Waktu Pelunasan</span>
+            <div className="text-5xl sm:text-6xl font-black text-stone-100 flex items-baseline justify-center gap-2">
+              {monthsToPayoff} <span className="text-xl sm:text-2xl text-stone-500 font-medium tracking-wide">Bulan</span>
+            </div>
+            <div className="text-sm text-stone-400 mt-2">Bebas utang pada <span className="text-stone-200 font-bold">{estimatedPayoffDate.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}</span></div>
+            
+            {monthsSaved > 0 && (
+              <div className="mt-5 inline-flex flex-col sm:flex-row items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 px-4 py-2.5 rounded-full text-xs font-bold text-emerald-400 mx-auto shadow-sm shadow-emerald-500/5">
+                <div className="flex items-center gap-1.5"><Trophy className="w-4 h-4" /> Selamat!</div>
+                <span className="text-emerald-300 font-medium">Dana ekstra menghemat {monthsSaved} bulan cicilan & bunga {formatRupiah(interestSaved)} 😁</span>
+              </div>
+            )}
+          </div>
+
           {/* Controls & Metrics */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-2">
-            {/* Slider */}
-            <div className="space-y-2">
-              <div className="flex justify-between text-xs font-mono">
-                <span className="text-stone-300 font-semibold">Bonus Pembayaran Ekstra:</span>
-                <span className="text-amber-400 font-bold">+{formatRupiah(extraPayment)}/bln</span>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 relative z-10">
+            {/* Slider Section */}
+            <div className="bg-stone-950/50 p-5 rounded-2xl border border-stone-800 space-y-4">
+              <div>
+                <div className="flex justify-between items-end mb-2">
+                  <label className="text-sm font-bold text-stone-200 block">Sertakan Dana Ekstra</label>
+                  <span className="text-amber-400 font-bold font-mono bg-amber-500/10 px-2 py-1 rounded-lg text-sm border border-amber-500/20">
+                    +{formatRupiah(extraPayment)}<span className="text-[10px] text-amber-500/70 ml-1">/bln</span>
+                  </span>
+                </div>
+                <p className="text-[11px] text-stone-500 mb-4 leading-relaxed">Tambahan dana di luar cicilan wajib bulanan. <em>(Ini game changer, coba geser slider-nya!)</em></p>
+                <input
+                  type="range"
+                  min="0"
+                  max="10000000"
+                  step="100000"
+                  value={extraPayment}
+                  onChange={(e) => setExtraPayment(parseInt(e.target.value, 10))}
+                  className="w-full accent-amber-500 cursor-pointer h-2 bg-stone-800 rounded-lg appearance-none"
+                />
               </div>
-              <input
-                type="range"
-                min="0"
-                max="10000000"
-                step="250000"
-                value={extraPayment}
-                onChange={(e) => setExtraPayment(parseInt(e.target.value, 10))}
-                className="w-full accent-amber-500 cursor-pointer"
-              />
-              <div className="text-[11px] text-stone-500">
-                Total Anggaran Cicilan Bulanan: <span className="font-mono text-stone-300">{formatRupiah(totalMonthlyDebtPool)}/bln</span>
+              
+              <div className="bg-stone-900 rounded-xl p-3 border border-stone-800 flex justify-between items-center text-xs">
+                <span className="text-stone-400">Total Dibayar / bln:</span>
+                <span className="font-mono text-stone-200 font-bold">{formatRupiah(totalMonthlyDebtPool)}</span>
               </div>
             </div>
 
-            {/* Estimated Freedom Date */}
-            <div className="bg-stone-950/80 border border-stone-800 p-4 rounded-xl text-center">
-              <span className="text-[11px] text-stone-400 uppercase font-medium">Estimasi Tanggal Bebas Utang</span>
-              <div className="text-lg font-extrabold text-emerald-400 font-mono mt-1">
-                {estimatedPayoffDate.toLocaleDateString('id-ID', { month: 'short', year: 'numeric' })}
-              </div>
-              <span className="text-[11px] text-stone-500 font-mono">({monthsToPayoff} bulan tersisa)</span>
-            </div>
-
-            {/* Estimated Total Interest */}
-            <div className="bg-stone-950/80 border border-stone-800 p-4 rounded-xl text-center">
-              <span className="text-[11px] text-stone-400 uppercase font-medium">Estimasi Hemat Bunga</span>
-              <div className="text-lg font-extrabold text-amber-400 font-mono mt-1">
-                ~{formatRupiah(totalInterestEstimate)}
-              </div>
-              <span className="text-[11px] text-stone-500">Strategi Dipercepat</span>
+            {/* CTA Section */}
+            <div className="flex flex-col justify-end gap-3">
+              <button
+                onClick={handleSharePlan}
+                className="w-full py-4 rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 text-sm font-black flex items-center justify-center gap-2 transition-all shadow-md active:scale-[0.98]"
+              >
+                <Share2 className="w-5 h-5" />
+                <span>BAGIKAN RENCANA LUNAS SAYA</span>
+              </button>
             </div>
           </div>
         </div>

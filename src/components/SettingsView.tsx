@@ -23,12 +23,13 @@ import {
 import { TelegramLinkModal } from './TelegramLinkModal';
 
 interface SettingsViewProps {
+  isStandalone?: boolean;
   settings: NotificationSettings;
   setSettings: React.Dispatch<React.SetStateAction<NotificationSettings>>;
   showToast: (msg: string) => void;
   userId?: string;
   onOpenInstallModal?: () => void;
-  isStandalone?: boolean;
+  isStkamulone?: boolean;
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({ 
@@ -37,7 +38,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   showToast,
   userId: propUserId,
   onOpenInstallModal,
-  isStandalone = false,
+  isStkamulone = false,
 }) => {
   const [localSettings, setLocalSettings] = useState<NotificationSettings>(settings);
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
@@ -68,7 +69,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   };
 
   const handleDisconnectTelegram = async () => {
-    if (!window.confirm('Apakah Anda yakin ingin memutuskan koneksi bot Telegram?')) {
+    if (!window.confirm('Apakah Kamu yakin ingin memutuskan koneksi bot Telegram?')) {
       return;
     }
     setDisconnecting(true);
@@ -112,7 +113,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       setLocalSettings(updated);
       setSettings(updated);
       new Notification('Notifikasi Berhasil Diaktifkan!', {
-        body: 'Anda akan menerima pengingat tagihan melalui notifikasi browser.'
+        body: 'Kamu akan menerima pengingat tagihan melalui notifikasi browser.'
       });
       showToast('Izin notifikasi browser diberikan');
     } else {
@@ -136,12 +137,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           chatId: localSettings.telegramChatId,
-          message: `✅ <b>Portal Uang Notifikasi Uji Coba</b>\n\nHalo ${userTag}! Notifikasi Telegram Anda berfungsi dengan sempurna. Pengingat tagihan dan alarm anggaran akan dikirimkan ke sini secara otomatis.`
+          message: `✅ <b>Portal Uang Notifikasi Uji Coba</b>\n\nHalo ${userTag}! Notifikasi Telegram Kamu berfungsi dengan sempurna. Pengingat tagihan dan alarm anggaran akan dikirimkan ke sini secara otomatis.`
         })
       });
       const data = await res.json();
       if (data.success) {
-        showToast('✅ Pesan uji coba berhasil dikirim ke Telegram Anda!');
+        showToast('✅ Pesan uji coba berhasil dikirim ke Telegram Kamu!');
       } else {
         showToast('Gagal mengirim pesan: ' + (data.error || 'Terjadi kesalahan'));
       }
@@ -317,7 +318,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <div className="space-y-5">
                 <div className="bg-stone-950/80 border border-stone-800/80 rounded-2xl p-4 space-y-3">
                   <p className="text-xs text-stone-300 leading-relaxed">
-                    Hubungkan akun Anda dengan Bot Telegram Portal Uang untuk mendapatkan notifikasi instan:
+                    Hubungkan akun Kamu dengan Bot Telegram Portal Uang untuk mendapatkan notifikasi instan:
                   </p>
                   <ul className="text-xs text-stone-400 space-y-1.5">
                     <li className="flex items-center gap-2">
@@ -448,7 +449,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
           <div className="text-[11px] text-stone-500 pt-2 border-t border-stone-800/60 flex items-center gap-1.5">
             <Info className="w-3.5 h-3.5 text-stone-500" />
-            <span>Memerlukan izin 'Allow Notifications' dari browser Anda.</span>
+            <span>Memerlukan izin 'Allow Notifications' dari browser Kamu.</span>
           </div>
         </div>
       </div>
@@ -463,7 +464,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="font-bold text-stone-100 text-base">Instalasi Aplikasi di Perangkat (PWA)</h3>
-                {isStandalone ? (
+                {isStkamulone ? (
                   <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
                     <CheckCircle className="w-3 h-3" /> Berjalan sebagai Aplikasi Native
                   </span>
@@ -484,7 +485,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 text-xs font-black flex items-center gap-2 transition-all shadow-md active:scale-95"
           >
             <Download className="w-4 h-4 stroke-[2.5]" />
-            <span>{isStandalone ? 'Buka Info PWA' : 'Pasang / Panduan Instal'}</span>
+            <span>{isStkamulone ? 'Buka Info PWA' : 'Pasang / Panduan Instal'}</span>
           </button>
         </div>
 
@@ -501,7 +502,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             <Laptop className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
             <div className="text-xs">
               <div className="font-bold text-stone-200">Desktop & Laptop</div>
-              <div className="text-[11px] text-stone-400 mt-0.5">Jendela standalone di Windows, Mac, dan Linux tanpa tab</div>
+              <div className="text-[11px] text-stone-400 mt-0.5">Jendela stkamulone di Windows, Mac, dan Linux tanpa tab</div>
             </div>
           </div>
 
@@ -548,7 +549,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           <div className="bg-stone-950/60 border border-stone-800/80 p-4 rounded-2xl text-xs text-stone-400 flex gap-3">
             <Info className="w-5 h-5 text-stone-500 shrink-0 mt-0.5" />
             <p className="leading-relaxed">
-              Pemeriksaan tagihan berjalan otomatis di latar belakang saat Anda mengakses aplikasi. Pengingat hanya dikirimkan 1x per hari agar tidak mengganggu fokus Anda.
+              Pemeriksaan tagihan berjalan otomatis di latar belakang saat Kamu mengakses aplikasi. Pengingat hanya dikirimkan 1x per hari agar tidak mengganggu fokus Kamu.
             </p>
           </div>
         </div>

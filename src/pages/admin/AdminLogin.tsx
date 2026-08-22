@@ -11,7 +11,7 @@ export const AdminLogin: React.FC = () => {
   const navigate = useNavigate();
 
   const criteria = {
-    length: password.length > 0 && password.length <= 8,
+    length: password.length > 0 && password.length >= 8,
     uppercase: /[A-Z]/.test(password),
     number: /\d/.test(password),
     special: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)
@@ -131,7 +131,7 @@ export const AdminLogin: React.FC = () => {
               <div className="space-y-2 text-xs">
                 <div className={`flex items-center gap-2 transition-colors ${criteria.length ? 'text-emerald-400' : 'text-stone-500'}`}>
                   {criteria.length ? <Check className="w-3 h-3 shrink-0" /> : <X className="w-3 h-3 shrink-0" />}
-                  <span>Maksimal 8 karakter</span>
+                  <span>Minimal 8 karakter</span>
                 </div>
                 <div className={`flex items-center gap-2 transition-colors ${criteria.uppercase ? 'text-emerald-400' : 'text-stone-500'}`}>
                   {criteria.uppercase ? <Check className="w-3 h-3 shrink-0" /> : <X className="w-3 h-3 shrink-0" />}

@@ -185,7 +185,7 @@ export const ZeroBasedBudgetView: React.FC<ZeroBasedBudgetViewProps> = ({
               <h2 className="font-extrabold text-xl text-stone-100">Alokator Anggaran Berbasis Nol</h2>
             </div>
             <p className="text-xs text-stone-300 max-w-2xl">
-              Setiap Rupiah pemasukan Anda harus diberikan tugas khusus ke amplop tagihan, pengeluaran, sinking fund, atau investasi hingga sisa uang belum dialokasikan tepat bernilai Rp 0.
+              Setiap Rupiah pemasukan Kamu harus diberikan tugas khusus ke amplop tagihan, pengeluaran, sinking fund, atau investasi hingga sisa uang belum dialokasikan tepat bernilai Rp 0.
             </p>
           </div>
 
@@ -233,7 +233,7 @@ export const ZeroBasedBudgetView: React.FC<ZeroBasedBudgetViewProps> = ({
               </span>
             ) : (
               <span className="flex items-center gap-1.5 text-rose-400 font-semibold">
-                <AlertTriangle className="w-4 h-4" /> Alokasi Anda melebihi pemasukan sebesar {formatRupiah(Math.abs(unassignedCash))}. Kurangi alokasi pos anggaran.
+                <AlertTriangle className="w-4 h-4" /> Alokasi Kamu melebihi pemasukan sebesar {formatRupiah(Math.abs(unassignedCash))}. Kurangi alokasi pos anggaran.
               </span>
             )}
           </div>

@@ -105,7 +105,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ showToast }) => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-black text-stone-100 tracking-tight">Profil & Langganan</h2>
-          <p className="text-stone-400 text-sm mt-1">Kelola data keanggotaan, masa aktif paket, dan keamanan akun Anda.</p>
+          <p className="text-stone-400 text-sm mt-1">Kelola data keanggotaan, masa aktif paket, dan keamanan akun Kamu.</p>
         </div>
         <button
           onClick={() => setActiveModal('upgrade')}
@@ -447,7 +447,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ showToast }) => {
               <div className="bg-stone-950 p-3 rounded-xl border border-stone-800/80 flex items-center gap-2 text-xs text-stone-400">
                 <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
                 <span>
-                  <strong>Catatan:</strong> Masa aktif baru akan ditambahkan secara akumulatif ke akun Anda setelah pembayaran diverifikasi lunas.
+                  <strong>Catatan:</strong> Masa aktif baru akan ditambahkan secara akumulatif ke akun Kamu setelah pembayaran diverifikasi lunas.
                 </span>
               </div>
             </div>

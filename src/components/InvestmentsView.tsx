@@ -283,7 +283,7 @@ export const InvestmentsView: React.FC<InvestmentsViewProps> = ({ investments, s
     if (txType === 'sell') {
       const remainingQty = Math.max(0, inv.quantity - qty);
       if (remainingQty === 0) {
-        showToast(`Penjualan berhasil. Seluruh aset ${inv.name} telah terjual (Kuantitas & Valuasi Rp 0). Anda sekarang dapat menghapus aset ini dari daftar portofolio jika diinginkan.`);
+        showToast(`Penjualan berhasil. Seluruh aset ${inv.name} telah terjual (Kuantitas & Valuasi Rp 0). Kamu sekarang dapat menghapus aset ini dari daftar portofolio jika diinginkan.`);
       } else {
         showToast(`Penjualan berhasil. Sisa kuantitas ${inv.name}: ${remainingQty} ${getUnitLabel(inv.category)}`);
       }
@@ -314,7 +314,7 @@ export const InvestmentsView: React.FC<InvestmentsViewProps> = ({ investments, s
       return;
     }
 
-    if (window.confirm(`Konfirmasi Hapus: Apakah Anda yakin ingin menghapus "${target.name}" (Valuasi Rp 0) dari daftar investasi?`)) {
+    if (window.confirm(`Konfirmasi Hapus: Apakah Kamu yakin ingin menghapus "${target.name}" (Valuasi Rp 0) dari daftar investasi?`)) {
       setInvestments(prev => prev.filter(inv => inv.id !== id));
       showToast(`Aset investasi "${target.name}" berhasil dihapus dari portofolio.`);
     }
@@ -323,7 +323,7 @@ export const InvestmentsView: React.FC<InvestmentsViewProps> = ({ investments, s
   const openTx = (id: string, type: 'buy' | 'sell') => {
     const target = investments.find(i => i.id === id);
     if (type === 'sell' && target && target.quantity <= 0) {
-      showToast(`Kuantitas aset "${target.name}" sudah 0 (terjual habis / valuasi Rp 0). Anda dapat langsung menghapus aset ini dari daftar portofolio.`);
+      showToast(`Kuantitas aset "${target.name}" sudah 0 (terjual habis / valuasi Rp 0). Kamu dapat langsung menghapus aset ini dari daftar portofolio.`);
       return;
     }
     setTxTargetId(id);
@@ -354,7 +354,7 @@ export const InvestmentsView: React.FC<InvestmentsViewProps> = ({ investments, s
             <TrendingUp className="text-amber-500 w-5 h-5" />
             Portofolio Investasi
           </h2>
-          <p className="text-sm text-stone-400">Kelola dan pantau saham, reksadana, SBN, dan logam mulia Anda.</p>
+          <p className="text-sm text-stone-400">Kelola dan pantau saham, reksadana, SBN, dan logam mulia Kamu.</p>
           <p className="text-xs text-stone-500 mt-1">
             Transaksi pembelian & penjualan akan otomatis tercatat di menu Riwayat Transaksi.
           </p>
@@ -857,7 +857,7 @@ export const InvestmentsView: React.FC<InvestmentsViewProps> = ({ investments, s
           </div>
           <h3 className="text-lg font-bold text-stone-200 mb-2">Belum ada portofolio investasi</h3>
           <p className="text-stone-500 max-w-sm mx-auto mb-6 text-sm">
-            Mulai bangun kekayaan Anda dengan menambahkan saham, reksadana, emas, atau obligasi.
+            Mulai bangun kekayaan Kamu dengan menambahkan saham, reksadana, emas, atau obligasi.
           </p>
           <button
             onClick={() => setIsAdding(true)}

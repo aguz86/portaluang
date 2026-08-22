@@ -253,17 +253,16 @@ export const AdminSettings: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-stone-300">
-                  Duitku Merchant Code
+                  Duitku Merchant Code ({duitkuEnv})
                 </label>
                 <input 
                   type="text" 
-                  value={duitkuMerchantCode} 
-                  onChange={(e) => setDuitkuMerchantCode(e.target.value)} 
+                  value={duitkuEnv === 'sandbox' ? duitkuSandboxMerchantCode : duitkuProductionMerchantCode} 
+                  onChange={(e) => duitkuEnv === 'sandbox' ? setDuitkuSandboxMerchantCode(e.target.value) : setDuitkuProductionMerchantCode(e.target.value)} 
                   placeholder="D12345 (Dari Dashboard Duitku)" 
                   className="mt-1.5 block w-full px-4 py-2.5 bg-stone-950 border border-stone-800 rounded-xl text-stone-100 font-mono text-sm focus:border-amber-500 focus:outline-none" 
                 />
               </div>
-
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-stone-300">
                   Duitku Environment Mode
@@ -281,12 +280,12 @@ export const AdminSettings: React.FC = () => {
 
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-stone-300">
-                Duitku Merchant API Key
+                Duitku Merchant API Key ({duitkuEnv})
               </label>
               <input 
                 type="password" 
-                value={duitkuApiKey} 
-                onChange={(e) => setDuitkuApiKey(e.target.value)} 
+                value={duitkuEnv === 'sandbox' ? duitkuSandboxApiKey : duitkuProductionApiKey} 
+                onChange={(e) => duitkuEnv === 'sandbox' ? setDuitkuSandboxApiKey(e.target.value) : setDuitkuProductionApiKey(e.target.value)} 
                 placeholder="abcdef0123456789abcdef0123456789" 
                 className="mt-1.5 block w-full px-4 py-2.5 bg-stone-950 border border-stone-800 rounded-xl text-stone-100 font-mono text-sm focus:border-amber-500 focus:outline-none" 
               />

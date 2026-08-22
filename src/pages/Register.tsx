@@ -106,7 +106,7 @@ export default function Register() {
     e.preventDefault();
     
     if (!name.trim()) {
-      setError("Mohon masukkan nama lengkap Anda");
+      setError("Mohon masukkan nama lengkap Kamu");
       return;
     }
 
@@ -127,7 +127,7 @@ export default function Register() {
     }
 
     if (!city.trim()) {
-      setError("Mohon masukkan kota domisili Anda");
+      setError("Mohon masukkan kota domisili Kamu");
       return;
     }
 
@@ -154,7 +154,7 @@ export default function Register() {
             Buat Akun & Mulai Kendalikan Keuangan
           </h1>
           <p className="text-stone-300 text-sm sm:text-base mt-2 max-w-xl mx-auto">
-            Lengkapi data diri Anda dan pilih paket langganan yang sesuai untuk memulai.
+            Lengkapi data diri Kamu dan pilih paket langganan yang sesuai untuk memulai.
           </p>
         </div>
 
@@ -291,7 +291,7 @@ export default function Register() {
                   <ShieldCheck className="w-5 h-5" />
                 </div>
                 <div>
-                  <div className="text-xs text-stone-400 font-semibold">Paket yang Anda Pilih:</div>
+                  <div className="text-xs text-stone-400 font-semibold">Paket yang Kamu Pilih:</div>
                   <div className="text-sm sm:text-base font-bold text-white">
                     <span className="text-amber-400">{selectedPlan.name}</span> &bull; {selectedPlan.durationLabel} {selectedPlan.price > 0 ? `(Rp ${selectedPlan.price.toLocaleString('id-ID')})` : '(Rp 0 / Trial)'}
                   </div>
@@ -318,7 +318,7 @@ export default function Register() {
                 <div>
                   <span className="text-xs font-bold uppercase tracking-wider text-amber-400">Langkah 2</span>
                   <h2 className="text-xl sm:text-2xl font-black text-white">
-                    Informasi Akun Anda
+                    Informasi Akun Kamu
                   </h2>
                 </div>
                 <span className="text-xs text-stone-400 bg-stone-950 px-3 py-1.5 rounded-xl border border-stone-800">
@@ -351,7 +351,7 @@ export default function Register() {
                   value={email} 
                   onChange={(e) => setEmail(e.target.value)} 
                   className="w-full bg-stone-950 border-2 border-stone-800 focus:border-amber-500 rounded-xl px-4 py-3 text-white text-base outline-none transition-colors" 
-                  placeholder="nama.anda@gmail.com" 
+                  placeholder="nama.kamu@gmail.com" 
                 />
                 <div className="text-xs text-stone-400 mt-1">
                   * Sistem pendaftaran wajib menggunakan akun berakhiran <strong className="text-amber-400">@gmail.com</strong>
@@ -455,7 +455,7 @@ export default function Register() {
                   Jaminan Privasi & Layanan
                 </h4>
                 <p className="text-xs text-stone-400 leading-relaxed">
-                  Data keuangan Anda dienkripsi secara aman dan privasi Anda terlindungi. Anda dapat mengupgrade, mengubah, atau memperpanjang paket kapan saja melalui menu Profil.
+                  Data keuangan Kamu dienkripsi secara aman dan privasi Kamu terlindungi. Kamu dapat mengupgrade, mengubah, atau memperpanjang paket kapan saja melalui menu Profil.
                 </p>
                 <div className="mt-4 pt-4 border-t border-stone-800 text-center text-xs text-stone-400">
                   Sudah punya akun sebelumnya?{" "}

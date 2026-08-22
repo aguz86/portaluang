@@ -115,8 +115,8 @@ export default function Home() {
   }, []);
 
   // Custom Income State for prospective users
-  const [monthlyIncome, setMonthlyIncome] = useState<number>(10000000); // Rp 10 Juta default
-  const [inputIncomeText, setInputIncomeText] = useState<string>("10.000.000");
+  const [monthlyIncome, setMonthlyIncome] = useState<number>(5000000); // Rp 5 Juta default
+  const [inputIncomeText, setInputIncomeText] = useState<string>("5.000.000");
 
   const handleCustomIncomeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const rawValue = e.target.value.replace(/[^0-9]/g, '');
@@ -244,7 +244,7 @@ export default function Home() {
           <TypewriterHeadline 
             appName={settings.appName} 
             heroTitle1={settings.heroTitle1 || 'Tinggalkan Spreadsheet Rumit.'}
-            heroTitle2Prefix={settings.heroTitle2Prefix || 'Kuasai Uang Anda dengan '}
+            heroTitle2Prefix={settings.heroTitle2Prefix || 'Kuasai Uang Kamu dengan '}
             font={settings.heroFont || 'Plus Jakarta Sans, sans-serif'}
           />
 
@@ -337,7 +337,7 @@ export default function Home() {
                   <Calculator className="w-3.5 h-3.5" /> Simulator Finansial Interaktif
                 </div>
                 <h2 className="text-xl sm:text-2xl font-black text-white">
-                  Hitung Potensi Penghematan & Alokasi Gaji Anda
+                  Hitung Potensi Penghematan & Alokasi Gaji Kamu
                 </h2>
               </div>
               <Link 
@@ -356,7 +356,7 @@ export default function Home() {
               <div className="lg:col-span-5 bg-stone-950 p-4 sm:p-5 rounded-2xl border border-stone-800 space-y-4">
                 <div>
                   <label className="block text-xs font-bold text-stone-300 mb-1.5">
-                    Pemasukan Bulanan Anda:
+                    Pemasukan Bulanan Kamu:
                   </label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-amber-400 font-bold text-sm sm:text-base">
@@ -487,7 +487,7 @@ export default function Home() {
                 Fitur Unggulan
               </div>
               <h2 className="text-2xl sm:text-3xl font-black text-white">
-                Solusi Lengkap Finansial Anda
+                Solusi Lengkap Finansial Kamu
               </h2>
             </div>
             <Link 
@@ -590,7 +590,7 @@ export default function Home() {
       <section className="py-12 md:py-16 bg-stone-950 text-center relative">
         <div className="max-w-3xl mx-auto px-4 sm:px-6">
           <h2 className="text-2xl sm:text-4xl font-black text-white tracking-tight mb-3">
-            Siap Mengambil Kendali Keuangan Anda?
+            Siap Mengambil Kendali Keuangan Kamu?
           </h2>
           <p className="text-stone-300 text-sm sm:text-base mb-6 max-w-xl mx-auto">
             Daftar dalam 60 detik dan nikmati pengelolaan anggaran yang rapi, otomatis, dan bebas stres.
@@ -626,7 +626,7 @@ export default function Home() {
         <div className="p-3 rounded-2xl bg-stone-900/95 border border-amber-500/50 shadow-2xl backdrop-blur-md flex items-center justify-between gap-3 shadow-amber-500/10">
           <div className="min-w-0">
             <div className="text-xs font-bold text-white truncate">
-              Kuasai Finansial Anda
+              Kuasai Finansial Kamu
             </div>
             <div className="text-[10px] text-emerald-400 font-semibold flex items-center gap-1">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping inline-block" />

@@ -11,6 +11,7 @@ export interface PWAInstallState {
   setShowModal: (show: boolean) => void;
   dismissPrompt: () => void;
   shouldShowBanner: boolean;
+  hasDeferredPrompt: boolean;
 }
 
 export function usePWAInstall(): PWAInstallState {
@@ -155,5 +156,6 @@ export function usePWAInstall(): PWAInstallState {
     setShowModal,
     dismissPrompt,
     shouldShowBanner: shouldShowBanner && !isStandalone && !isInstalled,
+    hasDeferredPrompt: !!deferredPrompt,
   };
 }

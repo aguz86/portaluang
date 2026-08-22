@@ -282,7 +282,7 @@ export const TelegramLinkModal: React.FC<TelegramLinkModalProps> = ({
           <div className="py-12 flex flex-col items-center justify-center text-center space-y-4">
             <Loader2 className="w-10 h-10 text-cyan-400 animate-spin" />
             <div className="text-sm font-bold text-white">Menghasilkan Kode Unik Pairing...</div>
-            <p className="text-xs text-stone-400 max-w-xs">Menyiapkan token aman dan tautan integrasi bot Telegram untuk akun Anda.</p>
+            <p className="text-xs text-stone-400 max-w-xs">Menyiapkan token aman dan tautan integrasi bot Telegram untuk akun Kamu.</p>
           </div>
         ) : status === 'linked' ? (
           /* SUCCESS STATE */
@@ -293,7 +293,7 @@ export const TelegramLinkModal: React.FC<TelegramLinkModalProps> = ({
             <div>
               <h4 className="text-xl font-black text-white">Telegram Berhasil Terhubung!</h4>
               <p className="text-sm text-stone-300 mt-1">
-                Akun web Anda kini tersinkronisasi dengan Telegram <strong className="text-cyan-400">@{linkedData?.telegramUsername || 'Pengguna'}</strong>
+                Akun web Kamu kini tersinkronisasi dengan Telegram <strong className="text-cyan-400">@{linkedData?.telegramUsername || 'Pengguna'}</strong>
               </p>
             </div>
             
@@ -314,7 +314,7 @@ export const TelegramLinkModal: React.FC<TelegramLinkModalProps> = ({
 
             <div className="text-xs text-stone-400 flex items-center gap-1.5 pt-2">
               <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-              <span>Pesan selamat datang telah dikirimkan ke Telegram Anda.</span>
+              <span>Pesan selamat datang telah dikirimkan ke Telegram Kamu.</span>
             </div>
           </div>
         ) : status === 'expired' ? (
@@ -325,7 +325,7 @@ export const TelegramLinkModal: React.FC<TelegramLinkModalProps> = ({
             </div>
             <div>
               <h4 className="text-lg font-bold text-white">Tautan Pairing Kedaluwarsa</h4>
-              <p className="text-xs text-stone-400 mt-1">Kode unik berlaku selama 15 menit demi keamanan akun Anda.</p>
+              <p className="text-xs text-stone-400 mt-1">Kode unik berlaku selama 15 menit demi keamanan akun Kamu.</p>
             </div>
             <button
               onClick={generatePairingLink}
@@ -346,7 +346,7 @@ export const TelegramLinkModal: React.FC<TelegramLinkModalProps> = ({
                   <span className="relative inline-flex rounded-full h-3 w-3 bg-cyan-500"></span>
                 </span>
                 <span className="text-xs font-semibold text-amber-200 truncate">
-                  Menunggu Anda membuka & menekan tombol Start di Telegram...
+                  Menunggu Kamu membuka & menekan tombol Start di Telegram...
                 </span>
               </div>
               <div className="px-2 py-0.5 rounded-md bg-stone-900 border border-stone-800 text-[11px] font-mono text-stone-300 shrink-0">
@@ -389,7 +389,7 @@ export const TelegramLinkModal: React.FC<TelegramLinkModalProps> = ({
                   <span>2. Atau Scan QR Code lewat HP</span>
                 </div>
                 <p className="text-[11px] text-stone-400 leading-relaxed">
-                  Arahkan kamera smartphone Anda ke QR code ini untuk langsung membuka aplikasi Telegram secara otomatis.
+                  Arahkan kamera smartphone Kamu ke QR code ini untuk langsung membuka aplikasi Telegram secara otomatis.
                 </p>
                 <div className="pt-1 flex gap-2">
                   <button

@@ -58,7 +58,7 @@ export const IncomePaydayView: React.FC<IncomePaydayViewProps> = ({
               <h2 className="text-xl font-bold text-stone-100">Perencana & Alokasi Otomatis Gaji (Payday Protocol)</h2>
             </div>
             <p className="text-xs text-stone-400 max-w-2xl">
-              Otomatiskan rutinitas gajian Anda. Saat gaji cair, eksekusi alokasi terencana Anda untuk membagi dana ke tagihan, pos sinking fund, dan tabungan hanya dalam 5 detik.
+              Otomatiskan rutinitas gajian Kamu. Saat gaji cair, eksekusi alokasi terencana Kamu untuk membagi dana ke tagihan, pos sinking fund, dan tabungan hanya dalam 5 detik.
             </p>
           </div>
 
@@ -74,7 +74,7 @@ export const IncomePaydayView: React.FC<IncomePaydayViewProps> = ({
         {executedSuccess && (
           <div className="p-3 bg-emerald-950 border border-emerald-800 text-emerald-300 rounded-xl text-xs font-semibold flex items-center gap-2 animate-fadeIn">
             <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-            <span>Transaksi gajian berhasil dicatat ke dalam buku catatan dan rekening Anda!</span>
+            <span>Transaksi gajian berhasil dicatat ke dalam buku catatan dan rekening Kamu!</span>
           </div>
         )}
       </div>
