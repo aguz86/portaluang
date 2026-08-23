@@ -306,7 +306,7 @@ async function startServer() {
 
 
   // Admin IP Whitelist State
-  let adminIpWhitelist = [];
+  let adminIpWhitelist = ['2404:c0:b201:3d3d:5c9f:629e:770a:740d', '182.8.66.198'];
 
   app.get('/api/admin/ip-whitelist', adminAuthMiddleware, (req, res) => {
     res.json({ success: true, ips: adminIpWhitelist });
