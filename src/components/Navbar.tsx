@@ -21,7 +21,7 @@ import {
   RotateCcw,
   Palette,
   Settings,
-  User, Bell, AlertTriangle, Calendar, Info, X, Clock, Zap, Crown } from 'lucide-react';
+  User, Bell, AlertTriangle, Calendar, Info, X, Clock, Zap, Crown , Menu } from 'lucide-react';
 
 interface NavbarProps {
   isStandalone?: boolean;
@@ -39,7 +39,6 @@ interface NavbarProps {
   budgetCategories?: BudgetCategory[];
   notificationSettings?: NotificationSettings;
   onOpenInstallModal?: () => void;
-  isStkamulone?: boolean;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -57,7 +56,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   budgetCategories = [],
   notificationSettings,
   onOpenInstallModal,
-  isStkamulone = false,
+  isStandalone = false,
 }) => {
   const location = useLocation();
   const { settings } = useGlobalSettings();
@@ -210,307 +209,283 @@ export const Navbar: React.FC<NavbarProps> = ({
     { id: 'guide', path: '/app/guide', label: 'Panduan', icon: <BookOpen className="w-4 h-4" /> },
   ];
 
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  // Close mobile menu on route change
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [currentPath]);
+
   return (
-    <header className="bg-stone-900 text-stone-100 border-b border-stone-800 sticky top-0 z-40 shadow-md no-print">
-      {/* Top Banner */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-wrap items-center justify-between gap-4">
-        {/* Brand */}
-        <Link to="/app/dashboard" className="flex items-center gap-3 hover:opacity-80 transition-opacity cursor-pointer">
-          <div className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 font-bold text-xl shadow-inner">
-            PU
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="font-extrabold text-lg tracking-tight text-stone-100">{settings.appName}</h1>
-              <span className="text-[10px] uppercase font-semibold px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-400 border border-emerald-800 flex items-center gap-1">
-                <HardDrive className="w-3 h-3" /> Cloud Database
-              </span>
+    <>
+      <header className="bg-stone-900 text-stone-100 flex flex-col md:w-64 md:h-screen sticky top-0 md:border-r border-stone-800 border-b md:border-b-0 z-40 no-print md:overflow-y-auto shrink-0 shadow-md transition-all">
+        {/* Mobile Header (Brand + Hamburger) */}
+        <div className="flex items-center justify-between p-4 md:px-5 md:py-6 relative z-50 bg-stone-900">
+          <Link to="/app/dashboard" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+            <div className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 font-bold text-xl shadow-inner shrink-0">
+              PU
             </div>
-            <p className="text-xs text-stone-400 hidden sm:block">Aplikasi Manajemen Keuangan & Anggaran Berbasis Nol</p>
-          </div>
-        </Link>
-
-        {/* Action Buttons & Quick Stats */}
-        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-          {/* Zero-Based Status Pill */}
-          <button
-            onClick={() => navigate('/app/budget')}
-            className={`text-xs px-3 py-1.5 rounded-lg border font-medium flex items-center gap-1.5 transition-all ${
-              Math.abs(unassignedCash) < 1
-                ? 'bg-emerald-950/60 border-emerald-700/60 text-emerald-300 hover:bg-emerald-900/60'
-                : unassignedCash > 0
-                ? 'bg-amber-950/60 border-amber-700/60 text-amber-300 hover:bg-amber-900/60'
-                : 'bg-rose-950/60 border-rose-700/60 text-rose-300 hover:bg-rose-900/60'
-            }`}
-            title="Status Anggaran Berbasis Nol"
-          >
-            <span className="font-mono font-bold">
-              {unassignedCash > 0 ? `+${formatRupiah(unassignedCash)}` : formatRupiah(unassignedCash)}
-            </span>
-            <span className="opacity-80 hidden md:inline">
-              {Math.abs(unassignedCash) < 1 ? 'Teralokasi Sempurna (Rp0)' : unassignedCash > 0 ? 'Belum Dialokasikan' : 'Overbudget'}
-            </span>
-          </button>
-
-          {/* AI Advisor Button */}
-          <button
-            onClick={onOpenAiAdvisor}
-            className="text-xs px-3 py-1.5 rounded-lg bg-gradient-to-r from-amber-500/20 to-orange-500/20 hover:from-amber-500/30 hover:to-orange-500/30 border border-amber-500/40 text-amber-300 font-medium flex items-center gap-1.5 transition-all shadow-sm"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
-            <span>Tanya {settings.aiName || 'Portal Uang Advisor'}</span>
-          </button>
-
-          {/* Theme Switcher Button */}
-          <div className="relative" ref={themeRef}>
-            <button
-              onClick={() => setIsThemeMenuOpen(!isThemeMenuOpen)}
-              className="text-xs px-2.5 py-1.5 rounded-lg bg-stone-800 hover:bg-stone-700 border border-stone-700 text-stone-200 font-semibold flex items-center gap-1.5 transition-all shadow-sm"
-              title="Pilih Tema Tampilan"
-            >
-              <Palette className="w-3.5 h-3.5 text-amber-400" />
-              <span className="hidden md:inline">Tema</span>
-            </button>
-
-            {isThemeMenuOpen && (
-              <>
-                <div 
-                  className="fixed inset-0 bg-black/50 backdrop-blur-[1px] z-40 sm:hidden animate-fadeIn" 
-                  onClick={() => setIsThemeMenuOpen(false)} 
-                />
-                <div className="fixed sm:absolute top-28 sm:top-full left-4 right-4 sm:left-auto sm:right-0 sm:mt-2 sm:w-64 max-h-[75vh] sm:max-h-80 overflow-y-auto bg-stone-900 border border-stone-800 rounded-2xl shadow-2xl p-2 z-50 animate-fadeIn space-y-1">
-                  <div className="text-[10px] uppercase font-bold text-stone-400 px-3 py-1.5 border-b border-stone-800 mb-1 sticky top-0 bg-stone-900 z-10 flex items-center justify-between">
-                    <span>Pilih Tema Aplikasi</span>
-                    <button 
-                      onClick={() => setIsThemeMenuOpen(false)}
-                      className="sm:hidden p-0.5 text-stone-400 hover:text-stone-200"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                  {themeOptions.map((opt) => (
-                    <button
-                      key={opt.id}
-                      onClick={() => {
-                        setThemeMode(opt.id);
-                        setIsThemeMenuOpen(false);
-                      }}
-                      className={`w-full text-left px-3 py-2 rounded-xl text-xs flex items-center justify-between transition-colors ${
-                        themeMode === opt.id
-                          ? 'bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30'
-                          : 'text-stone-300 hover:bg-stone-800 hover:text-stone-100'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className={`w-2.5 h-2.5 rounded-full ${opt.color}`} />
-                        <span>{opt.label}</span>
-                      </div>
-                      <span className="text-[9px] text-stone-500">{opt.badge}</span>
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
-          
-          {/* Notifications Button */}
-          <div className="relative" ref={notificationsRef}>
-            <button
-              onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
-              className="relative text-xs px-2.5 py-1.5 rounded-lg bg-stone-800 hover:bg-stone-700 border border-stone-700 text-stone-200 font-semibold flex items-center gap-1.5 transition-all shadow-sm"
-              title="Notifikasi"
-            >
-              <Bell className="w-3.5 h-3.5 text-stone-400" />
-              {notifications.length > 0 && (
-                <span className="absolute -top-1 -right-1 flex h-3 w-3">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-3 w-3 bg-rose-500 border border-stone-900"></span>
+            <div className="flex flex-col">
+              <div className="flex items-center gap-1.5">
+                <h1 className="font-extrabold text-lg tracking-tight">{settings.appName}</h1>
+              </div>
+              {isCloudSyncing ? (
+                <span className="text-[10px] font-medium text-emerald-400 flex items-center gap-1">
+                  <HardDrive className="w-3 h-3" /> Menyinkronkan...
+                </span>
+              ) : (
+                <span className="text-[10px] font-medium text-stone-500 flex items-center gap-1">
+                  <HardDrive className="w-3 h-3" /> Tersimpan lokal
                 </span>
               )}
-            </button>
+            </div>
+          </Link>
+          <div className="flex items-center gap-2 md:hidden">
             
-            {isNotificationsOpen && (
-              <>
-                <div 
-                  className="fixed inset-0 bg-black/50 backdrop-blur-[1px] z-40 sm:hidden animate-fadeIn" 
-                  onClick={() => setIsNotificationsOpen(false)} 
-                />
-                <div className="fixed sm:absolute top-28 sm:top-full left-4 right-4 sm:left-auto sm:right-0 sm:mt-2 sm:w-80 max-h-[75vh] sm:max-h-[28rem] overflow-y-auto bg-stone-900 border border-stone-800 rounded-2xl shadow-2xl z-50 animate-fadeIn custom-scrollbar">
-                  <div className="sticky top-0 bg-stone-900/95 backdrop-blur-sm z-10 border-b border-stone-800 px-4 py-3 flex items-center justify-between">
-                    <h3 className="font-bold text-stone-100 flex items-center gap-2">
-                      <Bell className="w-4 h-4 text-amber-400" />
-                      Notifikasi
-                    </h3>
-                    <div className="flex items-center gap-2">
-                      {notifications.length > 0 && (
-                        <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/30">
-                          {notifications.length} Baru
-                        </span>
-                      )}
-                      <button 
-                        onClick={() => setIsNotificationsOpen(false)}
-                        className="sm:hidden p-1 text-stone-400 hover:text-stone-200 rounded-lg hover:bg-stone-800 transition-colors"
-                        aria-label="Tutup"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                  <div className="p-2 space-y-1">
-                    {notifications.length === 0 ? (
-                      <div className="p-4 text-center text-stone-500 text-sm">Belum ada notifikasi</div>
-                    ) : notifications.map(notif => (
-                      <div 
-                        key={notif.id} 
-                        className="p-3 rounded-xl hover:bg-stone-800/50 transition-colors border border-transparent hover:border-stone-800 flex gap-3 group cursor-pointer"
-                        onClick={() => {
-                          setIsNotificationsOpen(false);
-                          if (notif.path) navigate(notif.path);
-                        }}
-                      >
-                        <div className="shrink-0 mt-0.5 p-1.5 rounded-lg bg-stone-950 border border-stone-800 group-hover:bg-stone-800 transition-colors">
-                          {notif.icon}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex justify-between items-start gap-2 mb-0.5">
-                            <h4 className="text-sm font-bold text-stone-200 truncate">{notif.title}</h4>
-                          </div>
-                          <p className="text-xs text-stone-400 leading-relaxed mb-1.5">{notif.desc}</p>
-                          <p className="text-[10px] font-semibold text-stone-600">{notif.time}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="sticky bottom-0 bg-stone-900 border-t border-stone-800 p-2">
-                    <button 
-                      onClick={() => setIsNotificationsOpen(false)}
-                      className="w-full py-2 text-xs font-bold text-stone-400 hover:text-stone-200 hover:bg-stone-800 rounded-lg transition-colors"
-                    >
-                      Tkamui Semua Dibaca
-                    </button>
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-
-          {/* Reset Demo Data */}
-          <button
-            onClick={onResetData}
-            className="p-1.5 text-stone-400 hover:text-stone-200 hover:bg-stone-800 rounded-lg transition-colors border border-stone-800"
-            title="Reset ke Data Contoh Indonesia"
-          >
-            <RotateCcw className="w-4 h-4" />
-          </button>
-
-          {/* Backup / Export */}
-          <button
-            onClick={onOpenBackupModal}
-            className="p-1.5 text-stone-400 hover:text-stone-200 hover:bg-stone-800 rounded-lg transition-colors border border-stone-800"
-            title="Cadangkan & Pulihkan Data"
-          >
-            <Download className="w-4 h-4" />
-          </button>
-
-          {/* Subscription Status Pill */}
-          <button
-            onClick={() => navigate('/app/profile')}
-            className={`hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-all ${
-              sub.planId === 'free_trial'
-                ? 'bg-blue-500/15 border-blue-500/30 text-blue-300 hover:bg-blue-500/25'
-                : sub.planId === 'annual'
-                ? 'bg-amber-500/15 border-amber-500/40 text-amber-300 hover:bg-amber-500/25'
-                : 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/25'
-            }`}
-            title={`Paket Aktif: ${sub.planName} (${remaining.text})`}
-          >
-            {sub.planId === 'free_trial' ? (
-              <Clock className="w-3 h-3 text-blue-400" />
-            ) : sub.planId === 'annual' ? (
-              <Crown className="w-3 h-3 text-amber-400" />
-            ) : (
-              <Zap className="w-3 h-3 text-emerald-400" />
-            )}
-            <span>{sub.planName}</span>
-            <span className="opacity-70 text-[10px]">({remaining.text})</span>
-          </button>
-
-          {/* Install App Button (Visible if not stkamulone) */}
-          {onOpenInstallModal && !isStkamulone && (
-            <button
-              onClick={onOpenInstallModal}
-              className="text-xs px-2.5 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 font-semibold flex items-center gap-1.5 transition-all shadow-sm active:scale-95"
-              title="Pasang Portal Uang di Perangkat (PWA)"
-            >
-              <Download className="w-3.5 h-3.5 text-amber-400" />
-              <span className="hidden sm:inline">Pasang App</span>
-            </button>
-          )}
-
-          {/* Quick Add Transaction */}
-          <button
-            onClick={onOpenQuickAdd}
-            className="text-xs px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold flex items-center gap-1 transition-all shadow-sm"
-          >
-            <Plus className="w-4 h-4 stroke-[3]" />
-            <span className="hidden sm:inline">Tambah Catatan</span>
-          </button>
-
-          {/* Profile Button */}
-          <button
-            onClick={() => {
-              navigate('/app/profile');
-            }}
-            className="text-xs px-2.5 py-1.5 rounded-lg bg-stone-800 hover:bg-stone-700 border border-stone-700 text-stone-200 font-semibold flex items-center gap-1.5 transition-all shadow-sm"
-            title="Profil Pengguna"
-          >
-            <User className="w-3.5 h-3.5 text-stone-400" />
-          </button>
-
-          {/* Settings Button */}
-          <button
-            onClick={() => navigate('/app/settings')}
-            className="text-xs px-2.5 py-1.5 rounded-lg bg-stone-800 hover:bg-stone-700 border border-stone-700 text-stone-200 font-semibold flex items-center gap-1.5 transition-all shadow-sm"
-            title="Pengaturan & Notifikasi"
-          >
-            <Settings className="w-3.5 h-3.5 text-stone-400" />
-          </button>
-        </div>
-      </div>
-
-      {/* Navigation Sub-Bar */}
-      <div 
-        ref={scrollContainerRef}
-        className="border-t border-stone-800/80 bg-stone-950/50 overflow-x-auto custom-scrollbar pb-1"
-      >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center gap-1 min-w-max pt-1.5 pb-0.5">
-                    {navItems.map((item) => {
-            const isActive = currentPath.startsWith(item.path);
-            return (
-              <Link
-                key={item.id}
-                to={item.path}
-                data-active={isActive}
-                className={`relative px-4 py-2 rounded-xl text-sm flex items-center gap-2 transition-all whitespace-nowrap ${
-                  isActive
-                    ? "bg-amber-500/20 text-amber-400 border border-amber-500/50 font-bold shadow-sm shadow-amber-500/20 drop-shadow-md"
-                    : "text-stone-400 font-semibold hover:text-stone-200 hover:bg-stone-800/60 border border-transparent"
-                }`}
+            {/* Notification Bell */}
+            <div className="relative" ref={notificationsRef}>
+              <button
+                onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
+                className="p-2 text-stone-400 hover:text-stone-200 bg-stone-800/50 rounded-lg border border-stone-700/50 relative"
               >
-                <span className={isActive ? "text-amber-400 drop-shadow-md" : "text-stone-400"}>{item.icon}</span>
-                <span className="tracking-wide">{item.label}</span>
-                {item.id === "bills" && hasDueBills && (
+                <Bell className="w-4 h-4" />
+                {notifications.length > 0 && (
                   <span className="absolute top-1 right-1 flex h-2 w-2">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
                   </span>
                 )}
-              </Link>
-            );
-          })}
+              </button>
+              
+              {isNotificationsOpen && (
+                <>
+                  <div 
+                    className="fixed inset-0 z-40 bg-black/20 md:hidden"
+                    onClick={() => setIsNotificationsOpen(false)}
+                  />
+                  <div className="absolute right-0 top-full mt-2 w-72 md:w-80 max-h-[60vh] overflow-y-auto bg-stone-900 border border-stone-800 rounded-xl shadow-2xl z-50 p-2 custom-scrollbar">
+                    <div className="px-3 py-2 flex items-center justify-between border-b border-stone-800/50 mb-2">
+                      <span className="font-bold text-sm">Notifikasi</span>
+                      {notifications.length > 0 && (
+                        <span className="text-[10px] uppercase font-bold px-2 py-0.5 bg-rose-500/20 text-rose-400 rounded-full">
+                          {notifications.length} Baru
+                        </span>
+                      )}
+                    </div>
+                    {notifications.length === 0 ? (
+                      <div className="p-4 text-center text-stone-500 text-xs">Belum ada notifikasi</div>
+                    ) : notifications.map(notif => (
+                      <div 
+                        key={notif.id}
+                        className="p-2.5 rounded-lg hover:bg-stone-800/50 transition-colors flex gap-3 cursor-pointer"
+                        onClick={() => {
+                          setIsNotificationsOpen(false);
+                          if (notif.path) navigate(notif.path);
+                        }}
+                      >
+                        <div className="shrink-0 mt-0.5 text-stone-400">
+                          {notif.icon}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="text-xs font-bold text-stone-200 truncate">{notif.title}</h4>
+                          <p className="text-[10px] text-stone-400 mt-0.5 line-clamp-2">{notif.desc}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+
+            <button 
+              onClick={() => navigate('/app/profile')}
+              className="p-2 text-stone-400 hover:text-stone-200 bg-stone-800/50 rounded-lg border border-stone-700/50"
+            >
+              <User className="w-4 h-4" />
+            </button>
+            <button 
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="p-2 text-stone-400 hover:text-stone-200 bg-stone-800 rounded-lg border border-stone-700"
+            >
+              {isMobileMenuOpen ? <X className="w-5 h-5"/> : <Menu className="w-5 h-5"/>}
+            </button>
+          </div>
         </div>
-      </div>
-    </header>
+
+        {/* Content Drawer (Mobile) / Sidebar (Desktop) */}
+        <div className={`\${isMobileMenuOpen ? 'flex absolute top-full left-0 right-0 bg-stone-900 border-b border-stone-800 shadow-xl max-h-[80vh] overflow-y-auto' : 'hidden'} md:flex md:static md:max-h-none md:shadow-none md:border-none flex-col flex-1 p-4 pt-0 md:px-4 md:pb-6 gap-6 z-40`}>
+          
+          {/* Action Buttons */}
+          <div className="flex flex-col gap-2.5">
+            <button
+              onClick={onOpenQuickAdd}
+              className="w-full py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold flex items-center justify-center gap-2 shadow-sm transition-all active:scale-95"
+            >
+              <Plus className="w-4 h-4 stroke-[3]" />
+              Tambah Catatan
+            </button>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={onOpenAiAdvisor}
+                className="py-2 px-2 rounded-xl bg-gradient-to-br from-amber-500/20 to-orange-500/20 hover:from-amber-500/30 hover:to-orange-500/30 border border-amber-500/40 text-amber-300 font-semibold flex items-center justify-center gap-1.5 transition-all text-xs"
+              >
+                <Sparkles className="w-3.5 h-3.5 animate-pulse" />
+                AI Advisor
+              </button>
+              <button
+                onClick={() => navigate('/app/budget')}
+                className={`py-2 px-2 rounded-xl border font-bold flex items-center justify-center transition-all text-xs \${
+                  Math.abs(unassignedCash) < 1
+                    ? 'bg-emerald-950/60 border-emerald-700/60 text-emerald-300 hover:bg-emerald-900/60'
+                    : unassignedCash > 0
+                    ? 'bg-amber-950/60 border-amber-700/60 text-amber-300 hover:bg-amber-900/60'
+                    : 'bg-rose-950/60 border-rose-700/60 text-rose-300 hover:bg-rose-900/60'
+                }`}
+              >
+                {unassignedCash > 0 ? `+\${formatRupiah(unassignedCash)}` : formatRupiah(unassignedCash)}
+              </button>
+            </div>
+          </div>
+
+          {/* Navigation Links */}
+          <nav className="flex flex-col gap-1 flex-1">
+            <div className="text-[10px] font-bold text-stone-500 uppercase tracking-wider mb-2 px-2">Menu Utama</div>
+            {navItems.map((item) => {
+              const isActive = currentPath.startsWith(item.path);
+              return (
+                <Link
+                  key={item.id}
+                  to={item.path}
+                  className={`relative px-3 py-2.5 rounded-xl text-sm flex items-center gap-3 transition-all \${
+                    isActive
+                      ? "bg-amber-500/15 text-amber-400 border border-amber-500/30 font-bold"
+                      : "text-stone-400 font-medium hover:text-stone-200 hover:bg-stone-800/60 border border-transparent"
+                  }`}
+                >
+                  <span className={isActive ? "text-amber-400" : "text-stone-500"}>{item.icon}</span>
+                  <span>{item.label}</span>
+                  {item.id === "bills" && hasDueBills && (
+                    <span className="ml-auto flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-2 w-2 rounded-full bg-rose-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
+                    </span>
+                  )}
+                </Link>
+              );
+            })}
+          </nav>
+
+          {/* Bottom Actions */}
+          <div className="pt-4 border-t border-stone-800 flex flex-col gap-3">
+            {/* Subscription Pill */}
+            <button
+              onClick={() => navigate('/app/profile')}
+              className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold border transition-all \${
+                sub.planId === 'free_trial'
+                  ? 'bg-blue-500/10 border-blue-500/20 text-blue-300 hover:bg-blue-500/20'
+                  : sub.planId === 'annual'
+                  ? 'bg-amber-500/10 border-amber-500/20 text-amber-300 hover:bg-amber-500/20'
+                  : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-300 hover:bg-emerald-500/20'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                {sub.planId === 'free_trial' ? <Clock className="w-3.5 h-3.5" /> : sub.planId === 'annual' ? <Crown className="w-3.5 h-3.5" /> : <Zap className="w-3.5 h-3.5" />}
+                <span>{sub.planName}</span>
+              </div>
+              <span className="opacity-70 text-[10px]">{remaining.text}</span>
+            </button>
+
+            <div className="flex items-center justify-between gap-2">
+              <button
+                onClick={() => navigate('/app/settings')}
+                className="flex-1 py-2 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-300 flex items-center justify-center gap-2 transition-colors text-xs font-semibold"
+              >
+                <Settings className="w-4 h-4" /> Pengaturan
+              </button>
+              
+              <div className="flex gap-1">
+                
+                {/* Desktop Notification Bell */}
+                <div className="relative hidden md:block" ref={notificationsRef}>
+                  <button
+                    onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
+                    className="p-2 text-stone-400 hover:text-stone-200 bg-stone-800 hover:bg-stone-700 rounded-xl transition-colors relative"
+                    title="Notifikasi"
+                  >
+                    <Bell className="w-4 h-4" />
+                    {notifications.length > 0 && (
+                      <span className="absolute top-0 right-0 flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
+                      </span>
+                    )}
+                  </button>
+                  
+                  {isNotificationsOpen && (
+                    <div className="absolute left-0 bottom-full mb-2 w-72 max-h-[60vh] overflow-y-auto bg-stone-900 border border-stone-800 rounded-xl shadow-2xl z-50 p-2 custom-scrollbar">
+                      <div className="px-3 py-2 flex items-center justify-between border-b border-stone-800/50 mb-2">
+                        <span className="font-bold text-sm">Notifikasi</span>
+                        {notifications.length > 0 && (
+                          <span className="text-[10px] uppercase font-bold px-2 py-0.5 bg-rose-500/20 text-rose-400 rounded-full">
+                            {notifications.length} Baru
+                          </span>
+                        )}
+                      </div>
+                      {notifications.length === 0 ? (
+                        <div className="p-4 text-center text-stone-500 text-xs">Belum ada notifikasi</div>
+                      ) : notifications.map(notif => (
+                        <div 
+                          key={notif.id}
+                          className="p-2.5 rounded-lg hover:bg-stone-800/50 transition-colors flex gap-3 cursor-pointer"
+                          onClick={() => {
+                            setIsNotificationsOpen(false);
+                            if (notif.path) navigate(notif.path);
+                          }}
+                        >
+                          <div className="shrink-0 mt-0.5 text-stone-400">
+                            {notif.icon}
+                          </div>
+                          <div className="flex-1 min-w-0 text-left">
+                            <h4 className="text-xs font-bold text-stone-200 truncate">{notif.title}</h4>
+                            <p className="text-[10px] text-stone-400 mt-0.5 line-clamp-2">{notif.desc}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <button
+                  onClick={onOpenBackupModal}
+                  className="p-2 text-stone-400 hover:text-stone-200 bg-stone-800 hover:bg-stone-700 rounded-xl transition-colors"
+                  title="Cadangkan Data"
+                >
+                  <Download className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={onResetData}
+                  className="p-2 text-stone-400 hover:text-stone-200 bg-stone-800 hover:bg-stone-700 rounded-xl transition-colors"
+                  title="Reset Demo Data"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Install App Button */}
+            {onOpenInstallModal && !isStandalone && (
+              <button
+                onClick={onOpenInstallModal}
+                className="w-full mt-1 py-2 rounded-xl bg-stone-800 hover:bg-stone-700 border border-stone-700 text-stone-300 text-xs font-semibold flex items-center justify-center gap-2 transition-all"
+              >
+                <Download className="w-3.5 h-3.5" />
+                Pasang App
+              </button>
+            )}
+          </div>
+        </div>
+
+      </header>
+    </>
   );
 };
-

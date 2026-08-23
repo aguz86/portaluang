@@ -27,6 +27,7 @@ import { AdminSubscriptions } from './pages/admin/AdminSubscriptions';
 import { AdminPayments } from './pages/admin/AdminPayments';
 import { AdminTelegram } from './pages/admin/AdminTelegram';
 import { AdminSettings } from './pages/admin/AdminSettings';
+import { AdminSecurity } from './pages/admin/AdminSecurity';
 import { AdminAiSettings } from './pages/admin/AdminAiSettings';
 import { AdminMarketing } from './pages/admin/AdminMarketing';
 import { AdminInstall } from './pages/admin/AdminInstall';
@@ -80,6 +81,7 @@ export default function App() {
           <Route path="payments" element={<AdminPayments />} />
           <Route path="telegram" element={<AdminTelegram />} />
           <Route path="marketing" element={<AdminMarketing />} />
+          <Route path="security" element={<AdminSecurity />} />
           <Route path="settings" element={<AdminSettings />} />
           <Route path="install" element={<AdminInstall />} />
           <Route path="content" element={<AdminContent />} />
