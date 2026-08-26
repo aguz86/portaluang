@@ -8,15 +8,12 @@ import {
   Flame, 
   Snowflake,
   Share2,
-  Trophy,
-  Calculator,
-  Edit2
+  Trophy
 } from 'lucide-react';
 
 interface AccountsAndDebtViewProps {
   accounts: Account[];
   onAddAccount: (acc: Omit<Account, 'id' | 'updatedAt'>) => void;
-  onEditAccount: (id: string, acc: Omit<Account, 'id' | 'updatedAt'>) => void;
   onUpdateAccountBalance: (id: string, newBalance: number) => void;
   onDeleteAccount: (id: string) => void;
 }
@@ -24,12 +21,10 @@ interface AccountsAndDebtViewProps {
 export const AccountsAndDebtView: React.FC<AccountsAndDebtViewProps> = ({
   accounts,
   onAddAccount,
-  onEditAccount,
   onUpdateAccountBalance,
   onDeleteAccount,
 }) => {
   const [isAdding, setIsAdding] = useState(false);
-  const [editingAccountId, setEditingAccountId] = useState<string | null>(null);
   const [payoffStrategy, setPayoffStrategy] = useState<'avalanche' | 'snowball'>('avalanche');
   const [extraPayment, setExtraPayment] = useState<number>(1000000);
   
@@ -38,7 +33,7 @@ export const AccountsAndDebtView: React.FC<AccountsAndDebtViewProps> = ({
 
   const handleOpenEditBalance = (acc: Account) => {
     setEditingBalanceId(acc.id);
-    setEditBalanceValue(formatRpInput(acc.balance.toString()));
+    setEditBalanceValue(acc.balance.toString());
   };
 
   const handleSaveBalance = (e: React.FormEvent) => {
@@ -63,49 +58,21 @@ export const AccountsAndDebtView: React.FC<AccountsAndDebtViewProps> = ({
   const totalAssets = assets.reduce((sum, a) => sum + a.balance, 0);
   const totalDebts = debts.reduce((sum, a) => sum + a.balance, 0);
 
-  const handleSubmitAccount = (e: React.FormEvent) => {
+  const handleCreateAccount = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
 
-    const accData = {
+    onAddAccount({
       name: name.trim(),
       category,
       type,
-      balance: parseRpInput(balance) || 0,
+      balance: parseFloat(balance) || 0,
       apr: parseFloat(apr) || undefined,
-      minPayment: minPayment ? parseRpInput(minPayment) : undefined,
-    };
-
-    if (editingAccountId) {
-      onEditAccount(editingAccountId, accData);
-    } else {
-      onAddAccount(accData);
-    }
+      minPayment: parseFloat(minPayment) || undefined,
+    });
 
     setName('');
     setIsAdding(false);
-    setEditingAccountId(null);
-  };
-
-  const handleOpenEditAccount = (acc: Account) => {
-    setName(acc.name);
-    setCategory(acc.category);
-    setType(acc.type);
-    setBalance(formatRpInput(acc.balance.toString()));
-    setApr(acc.apr ? acc.apr.toString() : '');
-    setMinPayment(acc.minPayment ? formatRpInput(acc.minPayment.toString()) : '');
-    setEditingAccountId(acc.id);
-  };
-
-  const resetForm = (cat: AccountCategory) => {
-    setCategory(cat);
-    setName('');
-    setType(cat === 'asset' ? 'checking' : 'credit_card');
-    setBalance('');
-    setApr('');
-    setMinPayment('');
-    setIsAdding(true);
-    setEditingAccountId(null);
   };
 
   // Debt Payoff Simulator Math
@@ -219,14 +186,20 @@ export const AccountsAndDebtView: React.FC<AccountsAndDebtViewProps> = ({
 
         <div className="flex gap-2">
           <button
-            onClick={() => resetForm('asset')}
+            onClick={() => {
+              setCategory('asset');
+              setIsAdding(true);
+            }}
             className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-stone-950 text-xs font-bold flex items-center gap-1.5 transition-colors"
           >
             <Plus className="w-4 h-4 stroke-[3]" />
             <span>Tambah Rekening</span>
           </button>
           <button
-            onClick={() => resetForm('liability')}
+            onClick={() => {
+              setCategory('liability');
+              setIsAdding(true);
+            }}
             className="px-4 py-2 rounded-xl bg-rose-500 hover:bg-rose-400 text-stone-950 text-xs font-bold flex items-center gap-1.5 transition-colors shadow-sm"
           >
             <Plus className="w-4 h-4 stroke-[3]" />
@@ -235,15 +208,12 @@ export const AccountsAndDebtView: React.FC<AccountsAndDebtViewProps> = ({
         </div>
       </div>
 
-      {/* Add/Edit Account Modal */}
-      {(isAdding || editingAccountId) && (
+      {/* Add Account Modal */}
+      {isAdding && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
-          <form onSubmit={handleSubmitAccount} className="bg-stone-900 border border-amber-500/40 p-6 rounded-2xl space-y-5 shadow-2xl w-full max-w-md">
+          <form onSubmit={handleCreateAccount} className="bg-stone-900 border border-amber-500/40 p-6 rounded-2xl space-y-5 shadow-2xl w-full max-w-md">
             <h3 className="font-bold text-stone-100 text-lg">
-              {editingAccountId 
-                ? (category === 'asset' ? 'Edit Rekening' : 'Edit Hutang / Pinjaman')
-                : (category === 'asset' ? 'Tambah Rekening Baru' : 'Tambah Hutang / Pinjaman Baru')
-              }
+              {category === 'asset' ? 'Tambah Rekening Baru' : 'Tambah Hutang / Pinjaman Baru'}
             </h3>
             <div className="space-y-4">
               <div>
@@ -329,7 +299,7 @@ export const AccountsAndDebtView: React.FC<AccountsAndDebtViewProps> = ({
             <div className="flex gap-3 pt-2">
               <button
                 type="button"
-                onClick={() => { setIsAdding(false); setEditingAccountId(null); }}
+                onClick={() => setIsAdding(false)}
                 className="flex-1 py-3 px-4 rounded-xl bg-stone-800 text-stone-300 text-sm font-medium hover:bg-stone-700 transition-colors"
               >
                 Batal
@@ -347,99 +317,87 @@ export const AccountsAndDebtView: React.FC<AccountsAndDebtViewProps> = ({
 
       {/* Debt Payoff Interactive Simulator */}
       {debts.length > 0 && (
-        <div className="bg-gradient-to-br from-stone-900 to-stone-850 border border-amber-500/30 p-5 sm:p-6 rounded-2xl space-y-6 shadow-md relative overflow-hidden flex flex-col">
+        <div className="bg-gradient-to-br from-stone-900 to-stone-850 border border-amber-500/30 p-5 sm:p-6 rounded-2xl space-y-6 shadow-md relative overflow-hidden">
           {/* Background decorative blur */}
           <div className="absolute -top-10 -right-10 w-32 h-32 bg-amber-500/5 rounded-full blur-3xl pointer-events-none"></div>
           
-          {/* Header & Strategy */}
-          <div className="flex flex-col gap-4 relative z-10">
-            <div className="flex items-center gap-2">
-              <Calculator className="w-5 h-5 text-amber-400" />
-              <h3 className="text-lg font-bold text-stone-100">Simulator Pelunasan Utang</h3>
-            </div>
-            
-            <div className="space-y-3">
-              <p className="text-xs sm:text-sm text-stone-400 leading-relaxed">
+          <div className="flex flex-col md:flex-row md:items-start justify-between gap-5 relative z-10">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-2">
+                <Flame className="w-5 h-5 text-amber-400 animate-pulse" />
+                <h3 className="text-lg font-bold text-stone-100">Simulator Pelunasan Utang</h3>
+              </div>
+              <p className="text-xs sm:text-sm text-stone-400 leading-relaxed max-w-lg">
                 Pilih strategi pelunasan dan lihat bagaimana tambahan dana ekstra setiap bulannya dapat membebaskan Anda dari utang lebih cepat dan menghemat biaya bunga.
               </p>
-              
-              {/* Strategy Toggle */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
+            </div>
+
+            {/* Strategy Toggle */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full mt-4">
               {/* Avalanche Card */}
               <button
                 onClick={() => setPayoffStrategy('avalanche')}
-                className={`p-3 rounded-xl border flex flex-col text-left relative overflow-hidden transition-all ${
+                className={`p-4 rounded-xl border flex flex-col text-left relative overflow-hidden transition-all ${
                   payoffStrategy === 'avalanche'
                     ? 'bg-rose-500/10 border-rose-500/50 ring-1 ring-rose-500/30'
                     : 'bg-stone-950 border-stone-800 hover:border-stone-700'
                 }`}
               >
-                <div className={`absolute top-0 right-0 text-[9px] font-bold px-2 py-0.5 rounded-bl-lg transition-colors ${payoffStrategy === 'avalanche' ? 'bg-rose-500 text-white' : 'bg-stone-800 text-stone-400'}`}>Paling Hemat</div>
-                <div className="flex items-center gap-2 mt-2">
-                  <Flame className={`w-4 h-4 ${payoffStrategy === 'avalanche' ? 'text-rose-500 animate-pulse' : 'text-stone-500'}`} />
-                  <span className={`font-bold text-sm ${payoffStrategy === 'avalanche' ? 'text-rose-400' : 'text-stone-300'}`}>Avalanche</span>
+                <div className={`absolute top-0 right-0 text-[10px] font-bold px-2.5 py-1 rounded-bl-lg transition-colors ${payoffStrategy === 'avalanche' ? 'bg-rose-500 text-white' : 'bg-stone-800 text-stone-400'}`}>Paling Hemat</div>
+                <div className="flex items-center gap-2 mb-1 mt-1">
+                  <Flame className={`w-5 h-5 ${payoffStrategy === 'avalanche' ? 'text-rose-500 animate-pulse' : 'text-stone-500'}`} />
+                  <span className={`font-black ${payoffStrategy === 'avalanche' ? 'text-rose-400' : 'text-stone-300'}`}>Avalanche</span>
                 </div>
+                <span className="text-[11px] text-stone-400 leading-tight">Fokus lunasi bunga tertinggi lebih dulu. Menghemat uang paling banyak.</span>
               </button>
 
               {/* Snowball Card */}
               <button
                 onClick={() => setPayoffStrategy('snowball')}
-                className={`p-3 rounded-xl border flex flex-col text-left relative overflow-hidden transition-all ${
+                className={`p-4 rounded-xl border flex flex-col text-left relative overflow-hidden transition-all ${
                   payoffStrategy === 'snowball'
                     ? 'bg-emerald-500/10 border-emerald-500/50 ring-1 ring-emerald-500/30'
                     : 'bg-stone-950 border-stone-800 hover:border-stone-700'
                 }`}
               >
-                <div className={`absolute top-0 right-0 text-[9px] font-bold px-2 py-0.5 rounded-bl-lg transition-colors ${payoffStrategy === 'snowball' ? 'bg-emerald-500 text-stone-950' : 'bg-stone-800 text-stone-400'}`}>Paling Memotivasi</div>
-                <div className="flex items-center gap-2 mt-2">
-                  <Snowflake className={`w-4 h-4 ${payoffStrategy === 'snowball' ? 'text-emerald-400' : 'text-stone-500'}`} />
-                  <span className={`font-bold text-sm ${payoffStrategy === 'snowball' ? 'text-emerald-400' : 'text-stone-300'}`}>Snowball</span>
+                <div className={`absolute top-0 right-0 text-[10px] font-bold px-2.5 py-1 rounded-bl-lg transition-colors ${payoffStrategy === 'snowball' ? 'bg-emerald-500 text-stone-950' : 'bg-stone-800 text-stone-400'}`}>Paling Memotivasi</div>
+                <div className="flex items-center gap-2 mb-1 mt-1">
+                  <Snowflake className={`w-5 h-5 ${payoffStrategy === 'snowball' ? 'text-emerald-400' : 'text-stone-500'}`} />
+                  <span className={`font-black ${payoffStrategy === 'snowball' ? 'text-emerald-400' : 'text-stone-300'}`}>Snowball</span>
                 </div>
+                <span className="text-[11px] text-stone-400 leading-tight">Fokus lunasi saldo terkecil lebih dulu. Kemenangan cepat bikin semangat.</span>
               </button>
             </div>
-            </div>
           </div>
 
-          {/* Waktu */}
-          <div className="bg-stone-950/80 border border-stone-800 p-6 sm:p-8 rounded-2xl text-center relative overflow-hidden shadow-inner z-10">
-            <div className="text-5xl sm:text-7xl font-black text-stone-100 flex items-baseline justify-center gap-2 mb-4">
-              {monthsToPayoff} <span className="text-xl sm:text-2xl text-stone-500 font-bold tracking-wide">BULAN</span>
+          {/* Result Big Numbers */}
+          <div className="text-center py-6 sm:py-8 relative z-10 border-y border-stone-800/50">
+            <span className="text-[11px] uppercase tracking-widest text-stone-500 font-bold mb-1 block">Waktu Pelunasan</span>
+            <div className="text-5xl sm:text-6xl font-black text-stone-100 flex items-baseline justify-center gap-2">
+              {monthsToPayoff} <span className="text-xl sm:text-2xl text-stone-500 font-medium tracking-wide">Bulan</span>
             </div>
+            <div className="text-sm text-stone-400 mt-2">Bebas utang pada <span className="text-stone-200 font-bold">{estimatedPayoffDate.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}</span></div>
             
-            <div className="w-full bg-stone-900 rounded-full h-2 mb-4 overflow-hidden max-w-sm mx-auto shadow-inner">
-              <div 
-                className="bg-amber-500 h-2 rounded-full transition-all duration-500 shadow-[0_0_10px_rgba(245,158,11,0.5)] relative overflow-hidden" 
-                style={{ width: `${Math.max(5, Math.min(100, ((monthsToPayoff + monthsSaved - monthsToPayoff) / (monthsToPayoff + monthsSaved || 1)) * 100))}%` }} 
-              >
-                <div className="absolute inset-0 bg-white/20 w-full"></div>
+            {monthsSaved > 0 && (
+              <div className="mt-5 inline-flex flex-col sm:flex-row items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 px-4 py-2.5 rounded-full text-xs font-bold text-emerald-400 mx-auto shadow-sm shadow-emerald-500/5">
+                <div className="flex items-center gap-1.5"><Trophy className="w-4 h-4" /> Selamat!</div>
+                <span className="text-emerald-300 font-medium">Dana ekstra menghemat {monthsSaved} bulan cicilan & bunga {formatRupiah(interestSaved)} 😁</span>
               </div>
-            </div>
-
-            <div className="text-sm sm:text-base text-stone-300 font-medium">
-              Bebas <span className="text-amber-400 font-bold">{estimatedPayoffDate.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}</span>
-            </div>
+            )}
           </div>
 
-          {/* Capaian */}
-          {monthsSaved > 0 && (
-            <div className="flex items-center justify-center gap-2 bg-emerald-500/10 border border-emerald-500/20 px-4 py-3 rounded-xl text-sm font-bold text-emerald-400 text-center shadow-sm z-10 mx-auto w-full sm:w-auto">
-              <span>🎉</span>
-              <span>Hemat {monthsSaved} bulan & {formatRupiah(interestSaved)}</span>
-            </div>
-          )}
-
-          {/* Simulasi & Rincian */}
+          {/* Controls & Metrics */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5 relative z-10">
             {/* Slider Section */}
             <div className="bg-stone-950/50 p-5 rounded-2xl border border-stone-800 space-y-4">
-              <div className="space-y-4">
-                <div className="flex justify-between items-end mb-1">
-                  <label className="text-sm font-bold text-stone-200 block">Dana Ekstra</label>
-                  <span className="text-blue-400 font-bold font-mono text-sm">
-                    {formatRupiah(extraPayment)}
+              <div>
+                <div className="flex justify-between items-end mb-2">
+                  <label className="text-sm font-bold text-stone-200 block">Sertakan Dana Ekstra</label>
+                  <span className="text-amber-400 font-bold font-mono bg-amber-500/10 px-2 py-1 rounded-lg text-sm border border-amber-500/20">
+                    +{formatRupiah(extraPayment)}<span className="text-[10px] text-amber-500/70 ml-1">/bln</span>
                   </span>
                 </div>
-                
+                <p className="text-[11px] text-stone-500 mb-4 leading-relaxed">Tambahan dana di luar cicilan wajib bulanan. <em>(Ini game changer, coba geser slider-nya!)</em></p>
                 <input
                   type="range"
                   min="0"
@@ -447,42 +405,26 @@ export const AccountsAndDebtView: React.FC<AccountsAndDebtViewProps> = ({
                   step="100000"
                   value={extraPayment}
                   onChange={(e) => setExtraPayment(parseInt(e.target.value, 10))}
-                  className="w-full accent-blue-500 cursor-pointer h-2 bg-stone-800 rounded-lg appearance-none"
+                  className="w-full accent-amber-500 cursor-pointer h-2 bg-stone-800 rounded-lg appearance-none"
                 />
-                
-                <div className="flex justify-between text-[11px] font-mono text-stone-500">
-                  <span>Rp 0</span>
-                  <span>Rp 10.000.000</span>
-                </div>
+              </div>
+              
+              <div className="bg-stone-900 rounded-xl p-3 border border-stone-800 flex justify-between items-center text-xs">
+                <span className="text-stone-400">Total Dibayar / bln:</span>
+                <span className="font-mono text-stone-200 font-bold">{formatRupiah(totalMonthlyDebtPool)}</span>
               </div>
             </div>
 
-            {/* Rincian Biaya */}
-            <div className="bg-stone-950/50 p-5 rounded-2xl border border-stone-800 space-y-3 text-sm font-mono flex flex-col justify-center">
-              <div className="flex justify-between text-stone-300">
-                <span>Cicilan Wajib:</span>
-                <span>{formatRupiah(totalMinPayment)}</span>
-              </div>
-              <div className="flex justify-between text-blue-400 font-medium">
-                <span>Dana Ekstra:</span>
-                <span>{formatRupiah(extraPayment)}</span>
-              </div>
-              <div className="border-t border-stone-800 pt-3 mt-1 flex justify-between text-stone-100 font-bold text-base">
-                <span>Total:</span>
-                <span>{formatRupiah(totalMonthlyDebtPool)}</span>
-              </div>
+            {/* CTA Section */}
+            <div className="flex flex-col justify-end gap-3">
+              <button
+                onClick={handleSharePlan}
+                className="w-full py-4 rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 text-sm font-black flex items-center justify-center gap-2 transition-all shadow-md active:scale-[0.98]"
+              >
+                <Share2 className="w-5 h-5" />
+                <span>BAGIKAN RENCANA LUNAS SAYA</span>
+              </button>
             </div>
-          </div>
-
-          {/* Tombol Aksi */}
-          <div className="mt-2 sticky bottom-4 z-20">
-            <button
-              onClick={handleSharePlan}
-              className="w-full py-4 rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 text-sm font-black flex items-center justify-center gap-2 transition-all shadow-[0_4px_14px_0_rgba(245,158,11,0.39)] active:scale-[0.98]"
-            >
-              <Share2 className="w-5 h-5" />
-              <span>BAGIKAN RENCANA LUNAS SAYA</span>
-            </button>
           </div>
         </div>
       )}
@@ -524,15 +466,6 @@ export const AccountsAndDebtView: React.FC<AccountsAndDebtViewProps> = ({
                       <span className="text-xs font-mono font-bold text-emerald-400 text-right group-hover:underline">
                         {formatRpInput(acc.balance)}
                       </span>
-                    </button>
-
-                    <button
-                      onClick={() => handleOpenEditAccount(acc)}
-                      className="p-2 text-stone-500 hover:text-amber-400 hover:bg-amber-500/10 active:bg-amber-500/20 rounded-xl transition-all border border-transparent hover:border-amber-500/20 shrink-0 flex items-center justify-center mr-1"
-                      title="Edit Rekening"
-                      aria-label="Edit Rekening"
-                    >
-                      <Edit2 className="w-4 h-4" />
                     </button>
 
                     <button
@@ -589,15 +522,6 @@ export const AccountsAndDebtView: React.FC<AccountsAndDebtViewProps> = ({
                       <span className="text-xs font-mono font-bold text-rose-400 text-right group-hover:underline">
                         {formatRpInput(acc.balance)}
                       </span>
-                    </button>
-
-                    <button
-                      onClick={() => handleOpenEditAccount(acc)}
-                      className="p-2 text-stone-500 hover:text-amber-400 hover:bg-amber-500/10 active:bg-amber-500/20 rounded-xl transition-all border border-transparent hover:border-amber-500/20 shrink-0 flex items-center justify-center mr-1"
-                      title="Edit Hutang"
-                      aria-label="Edit Hutang"
-                    >
-                      <Edit2 className="w-4 h-4" />
                     </button>
 
                     <button

@@ -154,7 +154,7 @@ export const GUIDE_CHAPTERS: GuideTopic[] = [
     summary: 'Cara aman mengamankan cadangan data JSON, mengekspor laporan CSV, dan memanfaatkan AI Gemini untuk audit anggaran instan.',
     content: [
       'Karena Portal Uang beroperasi secara lokal di browser Anda, lakukan ekspor cadangan data JSON berkala ke Google Drive atau penyimpanan perangkat Anda.',
-      'Butuh analisa dari asisten finansial AI? Klik tombol "PU Advisor" untuk meminta Gemini menganalisis kebiasaan belanja, variansi anggaran, dan strategi pelunasan hutang Anda secara aman.',
+      'Butuh analisa dari asisten finansial AI? Klik tombol "Penasihat AI" untuk meminta Gemini menganalisis kebiasaan belanja, variansi anggaran, dan strategi pelunasan hutang Anda secara aman.',
       'Anda juga dapat menempelkan teks rincian struk belanja atau riwayat m-banking ke prompt AI untuk mengurai transaksi secara instan ke dalam catatan Anda.'
     ],
     keyTakeaways: [

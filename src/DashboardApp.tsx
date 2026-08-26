@@ -688,13 +688,6 @@ export default function DashboardApp() {
     setAccounts((prev) => [...prev, newAcc]);
   };
 
-  const handleEditAccount = (id: string, updatedData: Omit<Account, 'id' | 'updatedAt'>) => {
-    setAccounts((prev) =>
-      prev.map((a) => (a.id === id ? { ...a, ...updatedData, updatedAt: new Date().toISOString().substring(0, 10) } : a))
-    );
-    showToast("Rekening/Hutang berhasil diperbarui");
-  };
-
   const handleUpdateAccountBalance = (id: string, newBalance: number) => {
     setAccounts((prev) =>
       prev.map((a) => (a.id === id ? { ...a, balance: newBalance, updatedAt: new Date().toISOString().substring(0, 10) } : a))
@@ -823,7 +816,7 @@ export default function DashboardApp() {
 
   return (
     <div className={`min-h-screen theme-${themeMode} bg-stone-950 text-stone-100 font-sans selection:bg-amber-500 selection:text-stone-950 flex flex-col antialiased transition-colors duration-300`}>
-      {/* Navigation / Sidebar */}
+      {/* Navigation Header */}
       <Navbar
         isCloudSyncing={isCloudSyncing}
         themeMode={themeMode}
@@ -842,9 +835,8 @@ export default function DashboardApp() {
         isStandalone={pwa.isStandalone}
       />
 
-      <div className="flex-1 flex flex-col min-w-0 min-h-screen">
-        {/* Main Container */}
-        <main id="main-app-container" className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6">
+      {/* Main Container */}
+      <main id="main-app-container" className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6">
         <Routes>
 
 
@@ -924,7 +916,6 @@ export default function DashboardApp() {
           <AccountsAndDebtView
             accounts={accounts}
             onAddAccount={handleAddAccount}
-            onEditAccount={handleEditAccount}
             onUpdateAccountBalance={handleUpdateAccountBalance}
             onDeleteAccount={handleDeleteAccount}
           />
@@ -1031,7 +1022,6 @@ export default function DashboardApp() {
           </div>
         </div>
       </footer>
-      </div>
 
       {/* Global Toast Notification */}
       {toastMessage && (

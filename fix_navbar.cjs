@@ -1,28 +1,26 @@
 const fs = require('fs');
 let content = fs.readFileSync('src/components/Navbar.tsx', 'utf8');
 
-// Fix the imports
+if (!content.includes('useGlobalSettings')) {
+  content = content.replace(
+    /import \{ Link, useLocation, useNavigate \} from 'react-router-dom';/,
+    `import { Link, useLocation, useNavigate } from 'react-router-dom';\nimport { useGlobalSettings } from '../hooks/useGlobalSettings';`
+  );
+  
+  content = content.replace(
+    /const location = useLocation\(\);/,
+    `const location = useLocation();\n  const { settings } = useGlobalSettings();`
+  );
+}
+
 content = content.replace(
-  /import { \n  LayoutDashboard,/,
-  `import { 
-  LayoutDashboard,
-  Crown,
-  ChevronRight,
-  Settings,
-  X,
-  Menu,`
+  /<h1 className="font-extrabold text-lg tracking-tight text-stone-100">AuraLedger<\/h1>/g,
+  `<h1 className="font-extrabold text-lg tracking-tight text-stone-100">{settings.appName}</h1>`
 );
 
-// Fix the settings button
 content = content.replace(
-  /onClick=\{\(\) => setIsSettingsOpen\(true\)\}/g,
-  `onClick={() => navigate('/app/settings')}`
-);
-
-// Remove the SettingsView modal at the bottom
-content = content.replace(
-  /\{\/\* Settings Modal \*\/\}\s*\{isSettingsOpen && \([\s\S]*?\}\)/,
-  ""
+  /AL\s*<\/div>/g,
+  `{settings.appName.substring(0, 2).toUpperCase()}</div>`
 );
 
 fs.writeFileSync('src/components/Navbar.tsx', content);

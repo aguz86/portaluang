@@ -23,8 +23,8 @@ export const AiAdvisorModal: React.FC<AiAdvisorModalProps> = ({
   onAddParsedTransactions,
 }) => {
   const { settings } = useGlobalSettings();
-  const aiName = settings.aiName || 'PU Advisor';
-  const aiRoleTitle = settings.aiRoleTitle || 'Pakar Strategi Keuangan';
+  const aiName = settings.aiName || 'Portal Uang Advisor';
+  const aiRoleTitle = settings.aiRoleTitle || 'AI Wealth Strategist';
 
   const [mode, setMode] = useState<'budget_audit' | 'debt_strategy' | 'parse_statement' | 'custom'>('budget_audit');
   const [userPrompt, setUserPrompt] = useState('');
@@ -61,12 +61,12 @@ export const AiAdvisorModal: React.FC<AiAdvisorModalProps> = ({
 
       const data = await res.json();
       if (res.status === 429 || !data.success) {
-        setErrorMsg(data.error || 'Gagal mengambil analisis AI.');
+        setErrorMsg(data.error || 'Failed to fetch AI insights.');
       } else {
         setAiResult(data.response);
       }
     } catch (err: any) {
-      setErrorMsg(err?.message || 'Terjadi kesalahan server saat menganalisis.');
+      setErrorMsg(err?.message || 'Server error generating AI insights.');
     } finally {
       setLoading(false);
     }
@@ -83,6 +83,7 @@ export const AiAdvisorModal: React.FC<AiAdvisorModalProps> = ({
             </div>
             <div>
               <h3 className="font-bold text-stone-100 text-base">{aiName} {aiRoleTitle}</h3>
+              <p className="text-xs text-stone-400">Server-side Gemini 3.6 Flash Intelligence</p>
             </div>
           </div>
 
@@ -107,7 +108,7 @@ export const AiAdvisorModal: React.FC<AiAdvisorModalProps> = ({
               }`}
             >
               <Bot className="w-4 h-4" />
-              <span>Audit Anggaran</span>
+              <span>Budget Audit</span>
             </button>
 
             <button
@@ -119,7 +120,7 @@ export const AiAdvisorModal: React.FC<AiAdvisorModalProps> = ({
               }`}
             >
               <Flame className="w-4 h-4" />
-              <span>Strategi Hutang</span>
+              <span>Debt Strategy</span>
             </button>
 
             <button
@@ -131,7 +132,7 @@ export const AiAdvisorModal: React.FC<AiAdvisorModalProps> = ({
               }`}
             >
               <FileText className="w-4 h-4" />
-              <span>Analisis Mutasi</span>
+              <span>Statement Parser</span>
             </button>
 
             <button
@@ -143,7 +144,7 @@ export const AiAdvisorModal: React.FC<AiAdvisorModalProps> = ({
               }`}
             >
               <Sparkles className="w-4 h-4" />
-              <span>Perintah Kustom</span>
+              <span>Custom Prompt</span>
             </button>
           </div>
 
@@ -151,15 +152,15 @@ export const AiAdvisorModal: React.FC<AiAdvisorModalProps> = ({
           {(mode === 'parse_statement' || mode === 'custom') && (
             <div>
               <label className="text-xs text-stone-400 block mb-1">
-                {mode === 'parse_statement' ? 'Tempel teks Mutasi Bank atau Struk:' : `Tanyakan pertanyaan keuangan ke ${aiName}:`}
+                {mode === 'parse_statement' ? 'Paste Bank Statement or Receipt text:' : `Ask ${aiName} a financial question:`}
               </label>
               <textarea
                 value={userPrompt}
                 onChange={(e) => setUserPrompt(e.target.value)}
                 placeholder={
                   mode === 'parse_statement'
-                    ? "Misal: 2026-07-24 Indomaret Rp42.100 Kebutuhan\n2026-07-25 Pertamina Rp35.000 Bensin"
-                    : "Misal: Berapa yang harus saya alokasikan untuk dana darurat jika sewa bulanan saya Rp2.500.000?"
+                    ? "e.g. 2026-07-24 Trader Joe's $42.10 groceries\n2026-07-25 Shell Oil $35.00 gas"
+                    : "e.g. How much should I allocate to emergency savings if my monthly rent is $1,850?"
                 }
                 rows={3}
                 className="w-full bg-stone-950 border border-stone-800 rounded-xl p-3 text-xs text-stone-200 focus:outline-none focus:border-amber-500 font-mono"
@@ -176,12 +177,12 @@ export const AiAdvisorModal: React.FC<AiAdvisorModalProps> = ({
             {loading ? (
               <>
                 <Sparkles className="w-4 h-4 animate-spin" />
-                <span>Sedang bertanya ke {aiName}...</span>
+                <span>Consulting {aiName}...</span>
               </>
             ) : (
               <>
                 <Send className="w-4 h-4" />
-                <span>Jalankan {mode === 'budget_audit' ? 'AUDIT ANGGARAN' : mode === 'debt_strategy' ? 'STRATEGI HUTANG' : mode === 'parse_statement' ? 'ANALISIS MUTASI' : 'PERINTAH KUSTOM'}</span>
+                <span>Run {mode.replace('_', ' ').toUpperCase()}</span>
               </>
             )}
           </button>
@@ -197,7 +198,7 @@ export const AiAdvisorModal: React.FC<AiAdvisorModalProps> = ({
           {/* Result Output Display */}
           {aiResult && (
             <div className="bg-stone-950 border border-stone-800 rounded-xl p-4 space-y-2">
-              <span className="text-[10px] uppercase font-bold text-amber-400 block">Ulasan Strategis AI</span>
+              <span className="text-[10px] uppercase font-bold text-amber-400 block">AI Strategic Feedback</span>
               <div className="text-xs text-stone-200 whitespace-pre-wrap leading-relaxed font-sans">
                 {aiResult}
               </div>
