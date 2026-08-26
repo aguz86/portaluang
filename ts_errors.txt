@@ -1,0 +1,2 @@
+src/components/Navbar.tsx(248,2): error TS1005: ')' expected.
+src/components/Navbar.tsx(249,1): error TS1005: '}' expected.

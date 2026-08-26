@@ -271,25 +271,25 @@ export const BillsView: React.FC<BillsViewProps> = ({
                     <button
                       type="button"
                       onClick={() => onRefundPaid(bill.id)}
-                      className="w-full py-1.5 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 transition-all active:scale-[0.98]"
+                      className="w-full py-1.5 px-3 rounded-xl text-[11px] sm:text-xs font-semibold flex items-center justify-center gap-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 transition-all active:scale-[0.98] min-w-0"
                       title="Batalkan pelunasan tagihan dan kembalikan dana ke rekening sumber"
                     >
                       <RotateCcw className="w-3.5 h-3.5 text-rose-400 shrink-0" />
-                      <span>Batalkan (Refund & Kembalikan Saldo)</span>
+                      <span className="whitespace-normal text-center leading-tight break-words min-w-0">Batalkan (Refund & Kembalikan Saldo)</span>
                     </button>
                   </div>
                 ) : (
                   <div className="flex items-center justify-between gap-2">
                     <button
                       onClick={() => onTogglePaid(bill.id)}
-                      className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all active:scale-[0.98] ${
+                      className={`flex-1 py-2 px-3 rounded-xl text-[11px] sm:text-xs font-bold flex items-center justify-center gap-1.5 transition-all active:scale-[0.98] min-w-0 ${
                         isOverdue
                           ? 'bg-rose-500 hover:bg-rose-400 text-stone-950 shadow-sm'
                           : 'bg-amber-500 hover:bg-amber-400 text-stone-950 shadow-sm'
                       }`}
                     >
                       <Clock className="w-4 h-4 shrink-0" />
-                      <span>Tkamui Lunas (Catat Transaksi)</span>
+                      <span className="whitespace-normal text-center leading-tight break-words min-w-0">Tandai Lunas (Catat Transaksi)</span>
                     </button>
 
                     <button

@@ -89,7 +89,7 @@ export default function Checkout() {
   });
 
   const selectedPlan = SUBSCRIPTION_PLANS.find(p => p.id === selectedPlanId) || SUBSCRIPTION_PLANS[3];
-  const isTrial = selectedPlan.id === 'free_trial';
+  const isTrial = selectedPlan.price === 0;
 
   // Pricing calculations
   const originalPrice = selectedPlan.originalPrice || selectedPlan.price;
@@ -240,7 +240,7 @@ export default function Checkout() {
       setTimeout(() => {
         setProcessingStep("Menyiapkan dashboard akun Anda...");
         setTimeout(() => {
-          activateUserPlan('free_trial', 'Free Trial (Rp 0)', 0, invoiceId);
+          activateUserPlan(selectedPlan.id, 'Free Trial (Rp 0)', 0, invoiceId);
           setIsProcessing(false);
           setIsSuccess(true);
         }, 600);

@@ -815,7 +815,7 @@ export default function DashboardApp() {
   };
 
   return (
-    <div className={`min-h-screen theme-${themeMode} bg-stone-950 text-stone-100 font-sans selection:bg-amber-500 selection:text-stone-950 flex flex-col md:flex-row antialiased transition-colors duration-300`}>
+    <div className={`min-h-screen theme-${themeMode} bg-stone-950 text-stone-100 font-sans selection:bg-amber-500 selection:text-stone-950 flex flex-col antialiased transition-colors duration-300`}>
       {/* Navigation / Sidebar */}
       <Navbar
         isCloudSyncing={isCloudSyncing}
