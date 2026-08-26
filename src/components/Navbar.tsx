@@ -48,12 +48,17 @@ export const Navbar: React.FC<NavbarProps> = ({
   const { settings } = useGlobalSettings();
 
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const notificationsRef = useRef<HTMLDivElement>(null);
+  const profileMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (notificationsRef.current && !notificationsRef.current.contains(event.target as Node)) {
         setIsNotificationsOpen(false);
+      }
+      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
+        setIsProfileMenuOpen(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -168,12 +173,67 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
 
             {/* Common Actions */}
-            <button 
-              onClick={() => navigate('/app/settings')}
-              className="p-2 text-stone-400 hover:text-stone-200 bg-stone-800/50 rounded-lg border border-stone-700/50 transition-colors"
-            >
-              <Settings className="w-4 h-4" />
-            </button>
+            <div className="relative" ref={profileMenuRef}>
+              <button
+                onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
+                className="p-2 text-stone-400 hover:text-stone-200 bg-stone-800/50 rounded-lg border border-stone-700/50 transition-colors"
+                title="Profil & Menu"
+              >
+                <User className="w-4 h-4" />
+              </button>
+
+              {isProfileMenuOpen && (
+                <div className="absolute right-0 top-full mt-2 w-56 bg-stone-900 border border-stone-800 rounded-xl shadow-2xl z-50 p-1.5 py-2">
+                  <div className="px-3 pb-2 mb-2 border-b border-stone-800/50">
+                    <p className="text-sm font-bold text-stone-200">{settings.appName}</p>
+                    <p className="text-xs text-stone-500">Menu Pengguna</p>
+                  </div>
+                  
+                  <button
+                    onClick={() => {
+                      navigate('/app/profile');
+                      setIsProfileMenuOpen(false);
+                    }}
+                    className="w-full text-left px-3 py-2 text-sm text-stone-300 hover:text-stone-100 hover:bg-stone-800/70 rounded-lg flex items-center gap-2 transition-colors"
+                  >
+                    <User className="w-4 h-4" /> Profil & Langganan
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setThemeMode(themeMode === 'dark' ? 'light' : 'dark');
+                      setIsProfileMenuOpen(false);
+                    }}
+                    className="w-full text-left px-3 py-2 text-sm text-stone-300 hover:text-stone-100 hover:bg-stone-800/70 rounded-lg flex items-center gap-2 transition-colors"
+                  >
+                    <Palette className="w-4 h-4" /> Ubah Tema ({themeMode === 'dark' ? 'Gelap' : 'Terang'})
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      onOpenBackupModal();
+                      setIsProfileMenuOpen(false);
+                    }}
+                    className="w-full text-left px-3 py-2 text-sm text-stone-300 hover:text-stone-100 hover:bg-stone-800/70 rounded-lg flex items-center gap-2 transition-colors"
+                  >
+                    <HardDrive className="w-4 h-4" /> Backup & Sinkronisasi
+                  </button>
+
+                  <div className="my-1 border-t border-stone-800/50"></div>
+
+                  <button
+                    onClick={() => {
+                      navigate('/app/settings');
+                      setIsProfileMenuOpen(false);
+                    }}
+                    className="w-full text-left px-3 py-2 text-sm text-stone-300 hover:text-stone-100 hover:bg-stone-800/70 rounded-lg flex items-center gap-2 transition-colors"
+                  >
+                    <Settings className="w-4 h-4" /> Pengaturan Umum
+                  </button>
+                </div>
+              )}
+            </div>
+
             <div className="relative" ref={notificationsRef}>
               <button
                 onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}

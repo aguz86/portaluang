@@ -688,6 +688,13 @@ export default function DashboardApp() {
     setAccounts((prev) => [...prev, newAcc]);
   };
 
+  const handleEditAccount = (id: string, updatedData: Omit<Account, 'id' | 'updatedAt'>) => {
+    setAccounts((prev) =>
+      prev.map((a) => (a.id === id ? { ...a, ...updatedData, updatedAt: new Date().toISOString().substring(0, 10) } : a))
+    );
+    showToast("Rekening/Hutang berhasil diperbarui");
+  };
+
   const handleUpdateAccountBalance = (id: string, newBalance: number) => {
     setAccounts((prev) =>
       prev.map((a) => (a.id === id ? { ...a, balance: newBalance, updatedAt: new Date().toISOString().substring(0, 10) } : a))
@@ -917,6 +924,7 @@ export default function DashboardApp() {
           <AccountsAndDebtView
             accounts={accounts}
             onAddAccount={handleAddAccount}
+            onEditAccount={handleEditAccount}
             onUpdateAccountBalance={handleUpdateAccountBalance}
             onDeleteAccount={handleDeleteAccount}
           />

@@ -9,12 +9,14 @@ import {
   Snowflake,
   Share2,
   Trophy,
-  Calculator
+  Calculator,
+  Edit2
 } from 'lucide-react';
 
 interface AccountsAndDebtViewProps {
   accounts: Account[];
   onAddAccount: (acc: Omit<Account, 'id' | 'updatedAt'>) => void;
+  onEditAccount: (id: string, acc: Omit<Account, 'id' | 'updatedAt'>) => void;
   onUpdateAccountBalance: (id: string, newBalance: number) => void;
   onDeleteAccount: (id: string) => void;
 }
@@ -22,10 +24,12 @@ interface AccountsAndDebtViewProps {
 export const AccountsAndDebtView: React.FC<AccountsAndDebtViewProps> = ({
   accounts,
   onAddAccount,
+  onEditAccount,
   onUpdateAccountBalance,
   onDeleteAccount,
 }) => {
   const [isAdding, setIsAdding] = useState(false);
+  const [editingAccountId, setEditingAccountId] = useState<string | null>(null);
   const [payoffStrategy, setPayoffStrategy] = useState<'avalanche' | 'snowball'>('avalanche');
   const [extraPayment, setExtraPayment] = useState<number>(1000000);
   
@@ -34,7 +38,7 @@ export const AccountsAndDebtView: React.FC<AccountsAndDebtViewProps> = ({
 
   const handleOpenEditBalance = (acc: Account) => {
     setEditingBalanceId(acc.id);
-    setEditBalanceValue(acc.balance.toString());
+    setEditBalanceValue(formatRpInput(acc.balance.toString()));
   };
 
   const handleSaveBalance = (e: React.FormEvent) => {
@@ -59,21 +63,49 @@ export const AccountsAndDebtView: React.FC<AccountsAndDebtViewProps> = ({
   const totalAssets = assets.reduce((sum, a) => sum + a.balance, 0);
   const totalDebts = debts.reduce((sum, a) => sum + a.balance, 0);
 
-  const handleCreateAccount = (e: React.FormEvent) => {
+  const handleSubmitAccount = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
 
-    onAddAccount({
+    const accData = {
       name: name.trim(),
       category,
       type,
-      balance: parseFloat(balance) || 0,
+      balance: parseRpInput(balance) || 0,
       apr: parseFloat(apr) || undefined,
-      minPayment: parseFloat(minPayment) || undefined,
-    });
+      minPayment: minPayment ? parseRpInput(minPayment) : undefined,
+    };
+
+    if (editingAccountId) {
+      onEditAccount(editingAccountId, accData);
+    } else {
+      onAddAccount(accData);
+    }
 
     setName('');
     setIsAdding(false);
+    setEditingAccountId(null);
+  };
+
+  const handleOpenEditAccount = (acc: Account) => {
+    setName(acc.name);
+    setCategory(acc.category);
+    setType(acc.type);
+    setBalance(formatRpInput(acc.balance.toString()));
+    setApr(acc.apr ? acc.apr.toString() : '');
+    setMinPayment(acc.minPayment ? formatRpInput(acc.minPayment.toString()) : '');
+    setEditingAccountId(acc.id);
+  };
+
+  const resetForm = (cat: AccountCategory) => {
+    setCategory(cat);
+    setName('');
+    setType(cat === 'asset' ? 'checking' : 'credit_card');
+    setBalance('');
+    setApr('');
+    setMinPayment('');
+    setIsAdding(true);
+    setEditingAccountId(null);
   };
 
   // Debt Payoff Simulator Math
@@ -187,20 +219,14 @@ export const AccountsAndDebtView: React.FC<AccountsAndDebtViewProps> = ({
 
         <div className="flex gap-2">
           <button
-            onClick={() => {
-              setCategory('asset');
-              setIsAdding(true);
-            }}
+            onClick={() => resetForm('asset')}
             className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-stone-950 text-xs font-bold flex items-center gap-1.5 transition-colors"
           >
             <Plus className="w-4 h-4 stroke-[3]" />
             <span>Tambah Rekening</span>
           </button>
           <button
-            onClick={() => {
-              setCategory('liability');
-              setIsAdding(true);
-            }}
+            onClick={() => resetForm('liability')}
             className="px-4 py-2 rounded-xl bg-rose-500 hover:bg-rose-400 text-stone-950 text-xs font-bold flex items-center gap-1.5 transition-colors shadow-sm"
           >
             <Plus className="w-4 h-4 stroke-[3]" />
@@ -209,12 +235,15 @@ export const AccountsAndDebtView: React.FC<AccountsAndDebtViewProps> = ({
         </div>
       </div>
 
-      {/* Add Account Modal */}
-      {isAdding && (
+      {/* Add/Edit Account Modal */}
+      {(isAdding || editingAccountId) && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
-          <form onSubmit={handleCreateAccount} className="bg-stone-900 border border-amber-500/40 p-6 rounded-2xl space-y-5 shadow-2xl w-full max-w-md">
+          <form onSubmit={handleSubmitAccount} className="bg-stone-900 border border-amber-500/40 p-6 rounded-2xl space-y-5 shadow-2xl w-full max-w-md">
             <h3 className="font-bold text-stone-100 text-lg">
-              {category === 'asset' ? 'Tambah Rekening Baru' : 'Tambah Hutang / Pinjaman Baru'}
+              {editingAccountId 
+                ? (category === 'asset' ? 'Edit Rekening' : 'Edit Hutang / Pinjaman')
+                : (category === 'asset' ? 'Tambah Rekening Baru' : 'Tambah Hutang / Pinjaman Baru')
+              }
             </h3>
             <div className="space-y-4">
               <div>
@@ -300,7 +329,7 @@ export const AccountsAndDebtView: React.FC<AccountsAndDebtViewProps> = ({
             <div className="flex gap-3 pt-2">
               <button
                 type="button"
-                onClick={() => setIsAdding(false)}
+                onClick={() => { setIsAdding(false); setEditingAccountId(null); }}
                 className="flex-1 py-3 px-4 rounded-xl bg-stone-800 text-stone-300 text-sm font-medium hover:bg-stone-700 transition-colors"
               >
                 Batal
@@ -498,6 +527,15 @@ export const AccountsAndDebtView: React.FC<AccountsAndDebtViewProps> = ({
                     </button>
 
                     <button
+                      onClick={() => handleOpenEditAccount(acc)}
+                      className="p-2 text-stone-500 hover:text-amber-400 hover:bg-amber-500/10 active:bg-amber-500/20 rounded-xl transition-all border border-transparent hover:border-amber-500/20 shrink-0 flex items-center justify-center mr-1"
+                      title="Edit Rekening"
+                      aria-label="Edit Rekening"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+
+                    <button
                       onClick={() => onDeleteAccount(acc.id)}
                       className="p-2 text-stone-500 hover:text-rose-400 hover:bg-rose-500/10 active:bg-rose-500/20 rounded-xl transition-all border border-transparent hover:border-rose-500/20 shrink-0 flex items-center justify-center"
                       title="Hapus Rekening"
@@ -551,6 +589,15 @@ export const AccountsAndDebtView: React.FC<AccountsAndDebtViewProps> = ({
                       <span className="text-xs font-mono font-bold text-rose-400 text-right group-hover:underline">
                         {formatRpInput(acc.balance)}
                       </span>
+                    </button>
+
+                    <button
+                      onClick={() => handleOpenEditAccount(acc)}
+                      className="p-2 text-stone-500 hover:text-amber-400 hover:bg-amber-500/10 active:bg-amber-500/20 rounded-xl transition-all border border-transparent hover:border-amber-500/20 shrink-0 flex items-center justify-center mr-1"
+                      title="Edit Hutang"
+                      aria-label="Edit Hutang"
+                    >
+                      <Edit2 className="w-4 h-4" />
                     </button>
 
                     <button
