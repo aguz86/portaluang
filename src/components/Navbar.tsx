@@ -39,7 +39,7 @@ interface NavbarProps {
   budgetCategories?: BudgetCategory[];
   notificationSettings?: NotificationSettings;
   onOpenInstallModal?: () => void;
-  isStkamulone?: boolean;
+  isStandalone?: boolean;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -57,7 +57,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   budgetCategories = [],
   notificationSettings,
   onOpenInstallModal,
-  isStkamulone = false,
+  isStandalone = false,
 }) => {
   const location = useLocation();
   const { settings } = useGlobalSettings();
@@ -386,7 +386,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                       onClick={() => setIsNotificationsOpen(false)}
                       className="w-full py-2 text-xs font-bold text-stone-400 hover:text-stone-200 hover:bg-stone-800 rounded-lg transition-colors"
                     >
-                      Tkamui Semua Dibaca
+                      Tandai Semua Dibaca
                     </button>
                   </div>
                 </div>
@@ -435,8 +435,8 @@ export const Navbar: React.FC<NavbarProps> = ({
             <span className="opacity-70 text-[10px]">({remaining.text})</span>
           </button>
 
-          {/* Install App Button (Visible if not stkamulone) */}
-          {onOpenInstallModal && !isStkamulone && (
+          {/* Install App Button (Visible if not standalone) */}
+          {onOpenInstallModal && !isStandalone && (
             <button
               onClick={onOpenInstallModal}
               className="text-xs px-2.5 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 font-semibold flex items-center gap-1.5 transition-all shadow-sm active:scale-95"

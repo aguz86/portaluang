@@ -72,7 +72,7 @@ export const BillsView: React.FC<BillsViewProps> = ({
               <h2 className="text-xl font-bold text-stone-100">Kalender & Pelacak Tagihan Bulanan</h2>
             </div>
             <p className="text-xs text-stone-400">
-              Jangan pernah terlambat membayar tagihan rutin. Menkamui tagihan sebagai lunas akan otomatis mencatat transaksi ke rekening pilihan Kamu.
+              Jangan pernah terlambat membayar tagihan rutin. Menandai tagihan sebagai lunas akan otomatis mencatat transaksi ke rekening pilihan Kamu.
             </p>
           </div>
 
@@ -289,7 +289,7 @@ export const BillsView: React.FC<BillsViewProps> = ({
                       }`}
                     >
                       <Clock className="w-4 h-4 shrink-0" />
-                      <span>Tkamui Lunas (Catat Transaksi)</span>
+                      <span>Tandai Lunas (Catat Transaksi)</span>
                     </button>
 
                     <button

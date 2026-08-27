@@ -45,6 +45,7 @@ export const AdminSettings: React.FC = () => {
   const [duitkuProductionMerchantCode, setDuitkuProductionMerchantCode] = useState('');
   const [duitkuProductionApiKey, setDuitkuProductionApiKey] = useState('');
   const [duitkuSandboxWhitelist, setDuitkuSandboxWhitelist] = useState('');
+  const [adminIpWhitelist, setAdminIpWhitelist] = useState('');
   const [telegramBotToken, setTelegramBotToken] = useState('');
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<{type: 'success'|'error', text: string} | null>(null);
@@ -77,6 +78,7 @@ export const AdminSettings: React.FC = () => {
           setDuitkuProductionMerchantCode(data.data.duitkuProductionMerchantCode || '');
           setDuitkuProductionApiKey(data.data.duitkuProductionApiKey || '');
           setDuitkuSandboxWhitelist(data.data.duitkuSandboxWhitelist || '');
+          setAdminIpWhitelist(data.data.adminIpWhitelist || '');
           setTelegramBotToken(data.data.telegramBotToken || '');
           setMaintenance(data.data.maintenance || false);
           if (data.data.aiName) setAiName(data.data.aiName);
@@ -148,6 +150,7 @@ export const AdminSettings: React.FC = () => {
         duitkuProductionMerchantCode,
         duitkuProductionApiKey,
         duitkuSandboxWhitelist,
+        adminIpWhitelist,
         telegramBotToken,
         maintenance,
         socials,
@@ -619,6 +622,44 @@ export const AdminSettings: React.FC = () => {
                   <p className="text-sm font-medium">Autentikasi Dua Langkah (2FA) telah aktif dan terverifikasi.</p>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-stone-900 border border-stone-800 rounded-2xl p-6 shadow-sm">
+          <h3 className="text-lg font-bold text-stone-100 mb-6 flex items-center gap-2">
+            <Shield className="w-5 h-5 text-amber-500" /> Keamanan Admin
+          </h3>
+          
+          {messages['security'] && (
+            <div className={`p-4 rounded-xl flex items-center gap-3 mb-6 ${
+              messages['security'].type === 'success' ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400' : 'bg-rose-500/10 border border-rose-500/20 text-rose-400'
+            }`}>
+              {messages['security'].type === 'success' ? <CheckCircle2 className="w-5 h-5" /> : <AlertTriangle className="w-5 h-5" />}
+              <p className="text-sm font-medium">{messages['security'].text}</p>
+            </div>
+          )}
+
+          <div className="space-y-6">
+            <div>
+              <label className="block text-sm font-bold text-stone-300 mb-2">Admin IP Whitelist</label>
+              <p className="text-xs text-stone-500 mb-2">Pisahkan dengan koma (contoh: 114.79.20.150, 192.168.1.1). IP lokal (127.0.0.1, localhost) otomatis diizinkan. Kosongkan jika tidak ingin membatasi (tidak disarankan).</p>
+              <input
+                type="text"
+                value={adminIpWhitelist}
+                onChange={(e) => setAdminIpWhitelist(e.target.value)}
+                placeholder="114.79.20.150"
+                className="w-full bg-stone-950 border border-stone-800 rounded-xl px-4 py-3 text-sm text-stone-200 focus:outline-none focus:border-amber-500 transition-colors"
+              />
+            </div>
+
+            <div className="flex justify-end border-t border-stone-800 pt-6">
+              <button
+                onClick={() => handleSaveSection('security', 'Pengaturan Keamanan Admin berhasil diperbarui!')}
+                className="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold rounded-xl flex items-center gap-2 transition-colors text-sm"
+              >
+                <Save className="w-4 h-4" /> Simpan Keamanan Admin
+              </button>
             </div>
           </div>
         </div>

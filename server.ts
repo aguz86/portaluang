@@ -294,18 +294,40 @@ async function startServer() {
   });
 
   // Admin Authentication
-  app.post('/api/admin/login', (req, res) => {
-    const { email, password, twoFactor } = req.body;
-    if (email === 'admin@portaluang.id' && password === 'Admin@123') {
-      const totp = getTotp();
-      const delta = totp.validate({ token: twoFactor, window: 1 });
-      const isTotpValid = delta !== null;
-      if (twoFactor === '123456' || isTotpValid) {
-        res.json({ success: true, token: 'SUPER_SECRET_ADMIN_TOKEN_2026' });
-        return;
+  app.post('/api/admin/login', async (req, res) => {
+    try {
+      const clientIp = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || '';
+      
+      const configResult = await pool.query('SELECT data FROM app_state WHERE id = $1', ['global_settings']);
+      const config = configResult.rows.length > 0 ? configResult.rows[0].data : {};
+      
+      const whitelistedIpsRaw = (config.adminIpWhitelist || '').split(',').map((ip: string) => ip.trim()).filter(Boolean);
+      const whitelistedIps = whitelistedIpsRaw.length > 0 ? whitelistedIpsRaw : ['114.79.20.150'];
+      
+      let isAllowed = clientIp.includes('127.0.0.1') || clientIp.includes('::1') || clientIp.includes('localhost');
+      if (!isAllowed) {
+        isAllowed = whitelistedIps.some((ip: string) => clientIp.includes(ip));
       }
+
+      if (!isAllowed) {
+        return res.status(401).json({ success: false, error: 'Invalid credentials or IP not whitelisted.' });
+      }
+
+      const { email, password, twoFactor } = req.body;
+      if (email === 'admin@portaluang.id' && password === 'Admin@123') {
+        const totp = getTotp();
+        const delta = totp.validate({ token: twoFactor, window: 1 });
+        const isTotpValid = delta !== null;
+        if (twoFactor === '123456' || isTotpValid) {
+          res.json({ success: true, token: 'SUPER_SECRET_ADMIN_TOKEN_2026' });
+          return;
+        }
+      }
+      res.status(401).json({ success: false, error: 'Invalid credentials or IP not whitelisted.' });
+    } catch (err: any) {
+      console.error('Login error:', err);
+      res.status(500).json({ success: false, error: 'Internal server error.' });
     }
-    res.status(401).json({ success: false, error: 'Invalid credentials or IP not whitelisted.' });
   });
 
   const adminAuthMiddleware = (req: express.Request, res: express.Response, next: express.NextFunction) => {

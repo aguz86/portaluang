@@ -8,7 +8,9 @@ import {
   Flame, 
   Snowflake,
   Share2,
-  Trophy
+  Trophy,
+  Calculator,
+  PartyPopper
 } from 'lucide-react';
 
 interface AccountsAndDebtViewProps {
@@ -324,7 +326,7 @@ export const AccountsAndDebtView: React.FC<AccountsAndDebtViewProps> = ({
           <div className="flex flex-col md:flex-row md:items-start justify-between gap-5 relative z-10">
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-2">
-                <Flame className="w-5 h-5 text-amber-400 animate-pulse" />
+                <Calculator className="w-5 h-5 text-amber-400" />
                 <h3 className="text-lg font-bold text-stone-100">Simulator Pelunasan Utang</h3>
               </div>
               <p className="text-xs sm:text-sm text-stone-400 leading-relaxed max-w-lg">
@@ -337,67 +339,66 @@ export const AccountsAndDebtView: React.FC<AccountsAndDebtViewProps> = ({
               {/* Avalanche Card */}
               <button
                 onClick={() => setPayoffStrategy('avalanche')}
-                className={`p-4 rounded-xl border flex flex-col text-left relative overflow-hidden transition-all ${
+                className={`p-4 rounded-xl border flex items-center justify-start relative overflow-hidden transition-all ${
                   payoffStrategy === 'avalanche'
                     ? 'bg-rose-500/10 border-rose-500/50 ring-1 ring-rose-500/30'
                     : 'bg-stone-950 border-stone-800 hover:border-stone-700'
                 }`}
               >
                 <div className={`absolute top-0 right-0 text-[10px] font-bold px-2.5 py-1 rounded-bl-lg transition-colors ${payoffStrategy === 'avalanche' ? 'bg-rose-500 text-white' : 'bg-stone-800 text-stone-400'}`}>Paling Hemat</div>
-                <div className="flex items-center gap-2 mb-1 mt-1">
-                  <Flame className={`w-5 h-5 ${payoffStrategy === 'avalanche' ? 'text-rose-500 animate-pulse' : 'text-stone-500'}`} />
-                  <span className={`font-black ${payoffStrategy === 'avalanche' ? 'text-rose-400' : 'text-stone-300'}`}>Avalanche</span>
+                <div className="flex items-center gap-2">
+                  <Flame className={`w-4 h-4 ${payoffStrategy === 'avalanche' ? 'text-rose-500 animate-pulse' : 'text-stone-500'}`} />
+                  <span className={`font-medium text-sm ${payoffStrategy === 'avalanche' ? 'text-rose-400' : 'text-stone-300'}`}>Avalanche</span>
                 </div>
-                <span className="text-[11px] text-stone-400 leading-tight">Fokus lunasi bunga tertinggi lebih dulu. Menghemat uang paling banyak.</span>
               </button>
 
               {/* Snowball Card */}
               <button
                 onClick={() => setPayoffStrategy('snowball')}
-                className={`p-4 rounded-xl border flex flex-col text-left relative overflow-hidden transition-all ${
+                className={`p-4 rounded-xl border flex items-center justify-start relative overflow-hidden transition-all ${
                   payoffStrategy === 'snowball'
-                    ? 'bg-emerald-500/10 border-emerald-500/50 ring-1 ring-emerald-500/30'
+                    ? 'bg-stone-800/20 border-stone-700 ring-1 ring-stone-700/50'
                     : 'bg-stone-950 border-stone-800 hover:border-stone-700'
                 }`}
               >
-                <div className={`absolute top-0 right-0 text-[10px] font-bold px-2.5 py-1 rounded-bl-lg transition-colors ${payoffStrategy === 'snowball' ? 'bg-emerald-500 text-stone-950' : 'bg-stone-800 text-stone-400'}`}>Paling Memotivasi</div>
-                <div className="flex items-center gap-2 mb-1 mt-1">
-                  <Snowflake className={`w-5 h-5 ${payoffStrategy === 'snowball' ? 'text-emerald-400' : 'text-stone-500'}`} />
-                  <span className={`font-black ${payoffStrategy === 'snowball' ? 'text-emerald-400' : 'text-stone-300'}`}>Snowball</span>
+                <div className={`absolute top-0 right-0 text-[10px] font-bold px-2.5 py-1 rounded-bl-lg transition-colors ${payoffStrategy === 'snowball' ? 'bg-stone-600 text-stone-200' : 'bg-stone-800 text-stone-400'}`}>Paling Memotivasi</div>
+                <div className="flex items-center gap-2">
+                  <Snowflake className={`w-4 h-4 ${payoffStrategy === 'snowball' ? 'text-stone-300' : 'text-stone-500'}`} />
+                  <span className={`font-medium text-sm ${payoffStrategy === 'snowball' ? 'text-stone-300' : 'text-stone-300'}`}>Snowball</span>
                 </div>
-                <span className="text-[11px] text-stone-400 leading-tight">Fokus lunasi saldo terkecil lebih dulu. Kemenangan cepat bikin semangat.</span>
               </button>
             </div>
           </div>
 
           {/* Result Big Numbers */}
           <div className="text-center py-6 sm:py-8 relative z-10 border-y border-stone-800/50">
-            <span className="text-[11px] uppercase tracking-widest text-stone-500 font-bold mb-1 block">Waktu Pelunasan</span>
-            <div className="text-5xl sm:text-6xl font-black text-stone-100 flex items-baseline justify-center gap-2">
-              {monthsToPayoff} <span className="text-xl sm:text-2xl text-stone-500 font-medium tracking-wide">Bulan</span>
+            <div className="text-5xl sm:text-7xl font-black text-stone-100 flex items-baseline justify-center gap-3">
+              {monthsToPayoff} <span className="text-xl sm:text-2xl text-stone-500 font-bold uppercase tracking-wide">Bulan</span>
             </div>
-            <div className="text-sm text-stone-400 mt-2">Bebas utang pada <span className="text-stone-200 font-bold">{estimatedPayoffDate.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}</span></div>
+            
+            <div className="w-full max-w-xs h-1.5 bg-stone-800 rounded-full mx-auto mt-5 mb-4 overflow-hidden">
+               <div className="h-full bg-amber-500 rounded-full" style={{ width: '60%' }}></div>
+            </div>
+
+            <div className="text-sm text-stone-400">Bebas <span className="text-amber-500 font-bold">{estimatedPayoffDate.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}</span></div>
             
             {monthsSaved > 0 && (
-              <div className="mt-5 inline-flex flex-col sm:flex-row items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 px-4 py-2.5 rounded-full text-xs font-bold text-emerald-400 mx-auto shadow-sm shadow-emerald-500/5">
-                <div className="flex items-center gap-1.5"><Trophy className="w-4 h-4" /> Selamat!</div>
-                <span className="text-emerald-300 font-medium">Dana ekstra menghemat {monthsSaved} bulan cicilan & bunga {formatRupiah(interestSaved)} 😁</span>
+              <div className="mt-5 inline-flex items-center gap-2 bg-emerald-950/40 border border-emerald-900/50 px-4 py-2 rounded-full text-xs font-medium text-emerald-400 mx-auto">
+                <PartyPopper className="w-4 h-4" />
+                <span>Hemat {monthsSaved} bulan & {formatRupiah(interestSaved)}</span>
               </div>
             )}
           </div>
 
           {/* Controls & Metrics */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 relative z-10">
-            {/* Slider Section */}
-            <div className="bg-stone-950/50 p-5 rounded-2xl border border-stone-800 space-y-4">
-              <div>
-                <div className="flex justify-between items-end mb-2">
-                  <label className="text-sm font-bold text-stone-200 block">Sertakan Dana Ekstra</label>
-                  <span className="text-amber-400 font-bold font-mono bg-amber-500/10 px-2 py-1 rounded-lg text-sm border border-amber-500/20">
-                    +{formatRupiah(extraPayment)}<span className="text-[10px] text-amber-500/70 ml-1">/bln</span>
-                  </span>
+          <div className="space-y-4 relative z-10">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
+              {/* Slider Section */}
+              <div className="bg-stone-950 p-5 rounded-2xl border border-stone-800">
+                <div className="flex justify-between items-center mb-6">
+                  <span className="text-sm font-bold text-stone-100">Dana Ekstra</span>
+                  <span className="text-sm font-bold text-blue-400 font-mono">{formatRupiah(extraPayment)}</span>
                 </div>
-                <p className="text-[11px] text-stone-500 mb-4 leading-relaxed">Tambahan dana di luar cicilan wajib bulanan. <em>(Ini game changer, coba geser slider-nya!)</em></p>
                 <input
                   type="range"
                   min="0"
@@ -405,26 +406,39 @@ export const AccountsAndDebtView: React.FC<AccountsAndDebtViewProps> = ({
                   step="100000"
                   value={extraPayment}
                   onChange={(e) => setExtraPayment(parseInt(e.target.value, 10))}
-                  className="w-full accent-amber-500 cursor-pointer h-2 bg-stone-800 rounded-lg appearance-none"
+                  className="w-full accent-blue-500 h-1.5 bg-stone-800 rounded-lg appearance-none cursor-pointer mb-2"
                 />
+                <div className="flex justify-between items-center">
+                  <span className="text-[10px] text-stone-500 font-mono">Rp 0</span>
+                  <span className="text-[10px] text-stone-500 font-mono">Rp 10.000.000</span>
+                </div>
               </div>
               
-              <div className="bg-stone-900 rounded-xl p-3 border border-stone-800 flex justify-between items-center text-xs">
-                <span className="text-stone-400">Total Dibayar / bln:</span>
-                <span className="font-mono text-stone-200 font-bold">{formatRupiah(totalMonthlyDebtPool)}</span>
+              {/* Summary Section */}
+              <div className="bg-stone-950 p-5 rounded-2xl border border-stone-800 flex flex-col justify-center space-y-3">
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-stone-300">Cicilan Wajib:</span>
+                  <span className="font-mono text-stone-300">{formatRupiah(totalMinPayment)}</span>
+                </div>
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-blue-400">Dana Ekstra:</span>
+                  <span className="font-mono text-blue-400">{formatRupiah(extraPayment)}</span>
+                </div>
+                <div className="border-t border-stone-800 pt-3 flex justify-between items-center text-sm font-bold">
+                  <span className="text-stone-100">Total:</span>
+                  <span className="font-mono text-stone-100">{formatRupiah(totalMonthlyDebtPool)}</span>
+                </div>
               </div>
             </div>
 
             {/* CTA Section */}
-            <div className="flex flex-col justify-end gap-3">
-              <button
-                onClick={handleSharePlan}
-                className="w-full py-4 rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 text-sm font-black flex items-center justify-center gap-2 transition-all shadow-md active:scale-[0.98]"
-              >
-                <Share2 className="w-5 h-5" />
-                <span>BAGIKAN RENCANA LUNAS SAYA</span>
-              </button>
-            </div>
+            <button
+              onClick={handleSharePlan}
+              className="w-full py-3.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 text-sm font-black flex items-center justify-center gap-2 transition-all shadow-md active:scale-[0.98]"
+            >
+              <Share2 className="w-4 h-4 stroke-[2.5]" />
+              <span>BAGIKAN RENCANA LUNAS SAYA</span>
+            </button>
           </div>
         </div>
       )}

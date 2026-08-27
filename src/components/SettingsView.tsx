@@ -29,7 +29,7 @@ interface SettingsViewProps {
   showToast: (msg: string) => void;
   userId?: string;
   onOpenInstallModal?: () => void;
-  isStkamulone?: boolean;
+  isStandalone?: boolean;
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({ 
@@ -38,7 +38,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   showToast,
   userId: propUserId,
   onOpenInstallModal,
-  isStkamulone = false,
+  isStandalone = false,
 }) => {
   const [localSettings, setLocalSettings] = useState<NotificationSettings>(settings);
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
@@ -464,7 +464,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="font-bold text-stone-100 text-base">Instalasi Aplikasi di Perangkat (PWA)</h3>
-                {isStkamulone ? (
+                {isStandalone ? (
                   <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
                     <CheckCircle className="w-3 h-3" /> Berjalan sebagai Aplikasi Native
                   </span>
@@ -485,7 +485,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 text-xs font-black flex items-center gap-2 transition-all shadow-md active:scale-95"
           >
             <Download className="w-4 h-4 stroke-[2.5]" />
-            <span>{isStkamulone ? 'Buka Info PWA' : 'Pasang / Panduan Instal'}</span>
+            <span>{isStandalone ? 'Buka Info PWA' : 'Pasang / Panduan Instal'}</span>
           </button>
         </div>
 
@@ -502,7 +502,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             <Laptop className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
             <div className="text-xs">
               <div className="font-bold text-stone-200">Desktop & Laptop</div>
-              <div className="text-[11px] text-stone-400 mt-0.5">Jendela stkamulone di Windows, Mac, dan Linux tanpa tab</div>
+              <div className="text-[11px] text-stone-400 mt-0.5">Jendela standalone di Windows, Mac, dan Linux tanpa tab</div>
             </div>
           </div>
 
