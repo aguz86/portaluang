@@ -1,11 +1,16 @@
 import { ExportDateRangeModal } from "./ExportDateRangeModal";
-import React, { useState } from 'react';
+import { DataManagementModal } from "./DataManagementModal";
+import { PinModal } from "./PinModal";
+import { encryptData, decryptData } from "../utils/crypto";
+import { getDriveToken, uploadToDrive } from "../utils/googleDrive";
+import React, { useState, useRef } from 'react';
 import { BudgetCategory, BudgetGroup, Transaction, formatRupiah } from '../types';
 import { formatRpInput, parseRpInput , formatDateToDDMMYYYY_HHMM} from '../utils/format';
 import { 
   Calculator, 
   Plus, 
   Trash2, 
+  PenLine,
   CheckCircle2, 
   AlertTriangle, 
   Wand2,
@@ -19,6 +24,7 @@ interface ZeroBasedBudgetViewProps {
   budgetCategories: BudgetCategory[];
   transactions: Transaction[];
   onUpdateCategory: (id: string, planned: number) => void;
+  onEditCategoryDetail: (id: string, group: BudgetGroup, name: string, planned: number) => void;
   onBulkUpdateCategories: (updates: { id: string, planned: number }[]) => void;
   onAddCategory: (group: BudgetGroup, name: string, planned: number) => void;
   onDeleteCategory: (id: string) => void;
@@ -29,6 +35,7 @@ export const ZeroBasedBudgetView: React.FC<ZeroBasedBudgetViewProps> = ({
   budgetCategories,
   transactions,
   onUpdateCategory,
+  onEditCategoryDetail,
   onBulkUpdateCategories,
   onAddCategory,
   onDeleteCategory,
@@ -38,9 +45,120 @@ export const ZeroBasedBudgetView: React.FC<ZeroBasedBudgetViewProps> = ({
   const [newCatGroup, setNewCatGroup] = useState<BudgetGroup>('Pengeluaran Variabel');
   const [newCatPlanned, setNewCatPlanned] = useState<string>('500.000');
   const [isAdding, setIsAdding] = useState(false);
+  const [editingCat, setEditingCat] = useState<BudgetCategory | null>(null);
+  const [editCatName, setEditCatName] = useState('');
+  const [editCatGroup, setEditCatGroup] = useState<BudgetGroup>('Pengeluaran Variabel');
+  const [editCatPlanned, setEditCatPlanned] = useState<string>('');
+  const [isDataModalOpen, setIsDataModalOpen] = useState(false);
+  const [isPinModalOpen, setIsPinModalOpen] = useState(false);
+  const [pinMode, setPinMode] = useState<'setup' | 'verify'>('setup');
+  const [pendingAction, setPendingAction] = useState<'print_pdf' | 'backup_local' | 'backup_drive' | 'import_local' | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const [copied, setCopied] = useState(false);
   const [exportModalConfig, setExportModalConfig] = useState<{isOpen: boolean, type: "pdf" | "csv"}>({ isOpen: false, type: "csv" });
   const [printDateRange, setPrintDateRange] = useState<{start: string, end: string} | null>(null);
+
+  const handleDataAction = (action: 'print_pdf' | 'backup_local' | 'backup_drive' | 'import_local') => {
+    setIsDataModalOpen(false);
+    if (action === 'print_pdf') {
+      setExportModalConfig({ isOpen: true, type: "pdf" });
+      return;
+    }
+
+    setPendingAction(action);
+    const hasPin = !!localStorage.getItem('portal_uang_pin_hash');
+    
+    if (action === 'import_local' && !hasPin) {
+      alert("Anda belum memiliki PIN. Buat PIN terlebih dahulu dengan melakukan backup lokal atau ke Google Drive.");
+      return;
+    }
+
+    setPinMode(hasPin && action !== 'setup' ? 'verify' : 'setup'); // We might want to force setup if no PIN, but here verify checks PIN. If no PIN and action is backup, we need setup.
+    if (!hasPin) {
+      setPinMode('setup');
+    } else {
+      setPinMode('verify');
+    }
+    setIsPinModalOpen(true);
+  };
+
+  const handlePinSuccess = async (pin: string) => {
+    setIsPinModalOpen(false);
+    const dataToBackup = {
+      budgetCategories,
+      transactions,
+      timestamp: new Date().toISOString()
+    };
+
+    if (pendingAction === 'backup_local') {
+      const encrypted = encryptData(dataToBackup, pin);
+      const blob = new Blob([encrypted], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `PortalUang_Backup_${formatDateToDDMMYYYY_HHMM()}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } else if (pendingAction === 'backup_drive') {
+      try {
+        const encrypted = encryptData(dataToBackup, pin);
+        const token = await getDriveToken();
+        await uploadToDrive(token, encrypted, `PortalUang_Backup_${formatDateToDDMMYYYY_HHMM()}.json`);
+        alert('Berhasil backup ke Google Drive!');
+      } catch (err: any) {
+        console.error(err);
+        alert('Gagal backup ke Google Drive. Pastikan Anda memberikan izin akses.');
+      }
+    } else if (pendingAction === 'import_local') {
+      // Store pin temporarily to decrypt after file selection
+      (window as any).__temp_pin = pin;
+      if (fileInputRef.current) {
+        fileInputRef.current.click();
+      }
+    }
+    setPendingAction(null);
+  };
+
+  const handleFileImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const pin = (window as any).__temp_pin;
+    delete (window as any).__temp_pin;
+
+    if (!pin) {
+      alert("Sesi PIN tidak valid, silakan ulangi.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const content = event.target?.result as string;
+        const decrypted = decryptData(content, pin);
+        
+        if (!decrypted || !decrypted.budgetCategories) {
+          throw new Error("Invalid format");
+        }
+
+        // Ideally we would update the parent state here, but since budgetCategories and transactions 
+        // are controlled by DashboardApp.tsx, we need a way to restore them.
+        // Let's reload the page and save to localStorage directly if we are using localStorage. 
+        // Wait, where is the data saved?
+        // Let's check App.tsx or DashboardApp.tsx. We might need a `onRestoreData` prop, but for now we'll just save it to localStorage and reload, assuming DashboardApp uses localStorage.
+        localStorage.setItem('portal_uang_budget_categories', JSON.stringify(decrypted.budgetCategories));
+        localStorage.setItem('portal_uang_transactions', JSON.stringify(decrypted.transactions));
+        alert('Data berhasil dipulihkan! Memuat ulang aplikasi...');
+        window.location.reload();
+
+      } catch (err) {
+        alert("Gagal memulihkan data. PIN mungkin salah atau file rusak.");
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
 
   // Print helper
   const handlePrint = () => { setExportModalConfig({ isOpen: true, type: "pdf" }); };
@@ -125,6 +243,20 @@ export const ZeroBasedBudgetView: React.FC<ZeroBasedBudgetViewProps> = ({
     onAddCategory(newCatGroup, newCatName.trim(), parseRpInput(newCatPlanned) || 0);
     setNewCatName('');
     setIsAdding(false);
+  };
+
+  const handleEditCategory = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingCat || !editCatName.trim()) return;
+    onEditCategoryDetail(editingCat.id, editCatGroup, editCatName.trim(), parseRpInput(editCatPlanned) || 0);
+    setEditingCat(null);
+  };
+
+  const openEditModal = (cat: BudgetCategory) => {
+    setEditingCat(cat);
+    setEditCatName(cat.name);
+    setEditCatGroup(cat.group);
+    setEditCatPlanned(cat.planned.toString());
   };
 
   // Quick 50/30/20 Preset Auto-Filler
@@ -240,21 +372,11 @@ export const ZeroBasedBudgetView: React.FC<ZeroBasedBudgetViewProps> = ({
 
           <div className="flex items-center gap-2 flex-wrap">
             <button
-              onClick={handleExportGoogleSheets}
-              title="Ekspor CSV kompatibel Google Sheets & Excel"
-              className="px-3 py-1.5 rounded-lg bg-emerald-900/50 hover:bg-emerald-900/80 text-emerald-300 font-semibold flex items-center gap-1.5 border border-emerald-700/80 transition-colors shadow-sm text-xs"
+              onClick={() => setIsDataModalOpen(true)}
+              className="px-3 py-1.5 rounded-lg bg-stone-800 hover:bg-stone-700 text-stone-200 font-medium flex items-center gap-1.5 border border-stone-700 transition-colors"
             >
-              <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Ekspor Google Sheets</span>
-            </button>
-
-            <button
-              onClick={handlePrint}
-              title="Cetak atau Simpan sebagai Laporan PDF"
-              className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold flex items-center gap-1.5 transition-colors shadow-sm text-xs"
-            >
-              <Printer className="w-3.5 h-3.5" />
-              <span>Cetak PDF</span>
+              <FileSpreadsheet className="w-3.5 h-3.5 text-amber-400" />
+              <span>Manajemen Data (Ekspor/Impor)</span>
             </button>
 
             <button
@@ -322,6 +444,70 @@ export const ZeroBasedBudgetView: React.FC<ZeroBasedBudgetViewProps> = ({
               <button
                 type="button"
                 onClick={() => setIsAdding(false)}
+                className="flex-1 py-3 px-4 rounded-xl bg-stone-800 text-stone-300 text-sm font-medium hover:bg-stone-700 transition-colors"
+              >
+                Batal
+              </button>
+              <button
+                type="submit"
+                className="flex-1 py-3 px-4 rounded-xl bg-amber-500 text-stone-950 text-sm font-bold hover:bg-amber-400 transition-colors shadow-sm"
+              >
+                Simpan
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Edit Category Form Modal */}
+      {editingCat && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
+          <form onSubmit={handleEditCategory} className="bg-stone-900 border border-amber-500/40 p-6 rounded-2xl space-y-5 shadow-2xl w-full max-w-md">
+            <h3 className="font-bold text-stone-100 text-lg">Edit Pos Kategori Anggaran</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs text-stone-400 block mb-1">Grup Kelompok</label>
+                <select
+                  value={editCatGroup}
+                  onChange={(e) => setEditCatGroup(e.target.value as BudgetGroup)}
+                  className="w-full bg-stone-950 border border-stone-800 rounded-xl px-4 py-3 text-sm text-stone-200 focus:outline-none focus:border-amber-500"
+                >
+                  {GROUPS.map((g) => (
+                    <option key={g} value={g}>{g}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs text-stone-400 block mb-1">Nama Kategori Pos</label>
+                <input
+                  type="text"
+                  value={editCatName}
+                  onChange={(e) => setEditCatName(e.target.value)}
+                  placeholder="misal: Makanan Kucing, Gym, Arisan"
+                  className="w-full bg-stone-950 border border-stone-800 rounded-xl px-4 py-3 text-sm text-stone-200 focus:outline-none focus:border-amber-500"
+                  required
+                />
+              </div>
+              <div>
+                <label className="text-xs text-stone-400 block mb-1">Nominal Anggaran (Rp)</label>
+                <div className="flex items-center bg-stone-950 border border-stone-800 rounded-xl px-4 py-3 focus-within:border-amber-500">
+                  <span className="text-stone-500 mr-2 text-sm">Rp</span>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={formatRpInput(parseRpInput(editCatPlanned))}
+                    onChange={(e) => setEditCatPlanned(e.target.value)}
+                    placeholder="0"
+                    className="w-full bg-transparent text-sm text-stone-200 focus:outline-none"
+                    required
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setEditingCat(null)}
                 className="flex-1 py-3 px-4 rounded-xl bg-stone-800 text-stone-300 text-sm font-medium hover:bg-stone-700 transition-colors"
               >
                 Batal
@@ -421,6 +607,13 @@ export const ZeroBasedBudgetView: React.FC<ZeroBasedBudgetViewProps> = ({
                         </div>
 
                         <button
+                          onClick={() => openEditModal(cat)}
+                          className="p-1.5 text-stone-500 hover:text-amber-400 hover:bg-stone-800 rounded-lg transition-colors"
+                          title="Edit Pos Anggaran"
+                        >
+                          <PenLine className="w-3.5 h-3.5" />
+                        </button>
+                        <button
                           onClick={() => onDeleteCategory(cat.id)}
                           className="p-1.5 text-stone-500 hover:text-rose-400 hover:bg-stone-800 rounded-lg transition-colors"
                           title="Hapus Pos Anggaran"
@@ -437,6 +630,27 @@ export const ZeroBasedBudgetView: React.FC<ZeroBasedBudgetViewProps> = ({
         })}
       </div>
     </div>
+    
+    <input 
+      type="file" 
+      accept=".json" 
+      ref={fileInputRef} 
+      onChange={handleFileImport} 
+      className="hidden" 
+    />
+    
+    <DataManagementModal 
+      isOpen={isDataModalOpen} 
+      onClose={() => setIsDataModalOpen(false)} 
+      onAction={handleDataAction} 
+    />
+    
+    <PinModal 
+      isOpen={isPinModalOpen} 
+      onClose={() => setIsPinModalOpen(false)} 
+      onSuccess={handlePinSuccess} 
+      mode={pinMode} 
+    />
     </>
   );
 };

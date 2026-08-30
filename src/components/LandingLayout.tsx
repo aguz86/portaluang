@@ -12,8 +12,8 @@ export const LandingLayout: React.FC<{ children: React.ReactNode }> = ({ childre
   const { settings } = useGlobalSettings();
   const [socials, setSocials] = useState<any>({});
   
-  const [isAuth, setIsAuth] = useState(false);
-  const [userName, setUserName] = useState('');
+  const [isAuth, setIsAuth] = useState(checkIsAuthenticated);
+  const [userProfile, setUserProfile] = useState(() => checkIsAuthenticated() ? getUserProfile() : null);
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -31,12 +31,7 @@ export const LandingLayout: React.FC<{ children: React.ReactNode }> = ({ childre
     const authStatus = checkIsAuthenticated();
     setIsAuth(authStatus);
     if (authStatus) {
-      const profile = getUserProfile();
-      if (profile && profile.name) {
-        setUserName(profile.name);
-      } else {
-        setUserName('Pengguna');
-      }
+      setUserProfile(getUserProfile());
     }
   }, []);
 
@@ -81,10 +76,43 @@ export const LandingLayout: React.FC<{ children: React.ReactNode }> = ({ childre
                 <div className="relative" ref={dropdownRef}>
                   <button 
                     onClick={() => setShowDropdown(!showDropdown)}
-                    className="flex items-center gap-1.5 text-stone-300 hover:text-white transition-colors text-sm font-medium focus:outline-none"
+                    className="flex items-center gap-1.5 focus:outline-none hover:opacity-80 transition-opacity"
                   >
-                    <span className="truncate max-w-[120px] md:max-w-[150px]">Halo, {userName}</span>
-                    <ChevronDown className="w-4 h-4" />
+                    <div className="flex flex-col items-end mr-1 text-right">
+                      <span className="text-stone-200 text-sm font-bold truncate max-w-[120px] md:max-w-[180px]">
+                        {userProfile?.email || 'Pengguna'}
+                      </span>
+                      {userProfile?.subscription && (
+                        (() => {
+                          const sub = userProfile.subscription;
+                          const expiresAt = new Date(sub.expiresAt).getTime();
+                          const isExpired = Date.now() > expiresAt || sub.status === 'expired';
+                          const isTrial = sub.planId === 'free_trial';
+                          const remainingDays = Math.ceil((expiresAt - Date.now()) / (1000 * 60 * 60 * 24));
+                          
+                          let subText = "";
+                          let subColor = "";
+                          
+                          if (isExpired) {
+                            subText = "Kedaluwarsa";
+                            subColor = "text-rose-400";
+                          } else if (isTrial) {
+                            subText = "Free Trial";
+                            subColor = "text-emerald-400";
+                          } else {
+                            subText = `Pro (${remainingDays} hr)`;
+                            subColor = "text-amber-400";
+                          }
+                          
+                          return (
+                            <span className={`text-[10px] font-black uppercase tracking-wider ${subColor}`}>
+                              {subText}
+                            </span>
+                          );
+                        })()
+                      )}
+                    </div>
+                    <ChevronDown className="w-4 h-4 text-stone-400" />
                   </button>
 
                   {showDropdown && (

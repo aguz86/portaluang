@@ -442,6 +442,30 @@ export default function DashboardApp() {
     );
   };
 
+  const handleEditCategoryDetail = (id: string, group: BudgetGroup, name: string, planned: number) => {
+    const cat = budgetCategories.find((c) => c.id === id);
+    if (!cat) return;
+    
+    if (group !== 'Pemasukan') {
+      const isOriginallyPemasukan = cat.group === 'Pemasukan';
+      const diff = isOriginallyPemasukan ? planned : (planned - cat.planned);
+      if (diff > 0 && unassignedCash < diff) {
+        showToast(`Gagal merubah: Saldo belum dialokasikan kurang Rp ${formatRupiah(diff - unassignedCash)}, naikan pemasukan kamu/ kurangi nominal pos anggaran.`);
+        return;
+      }
+    }
+
+    setBudgetCategories((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, group, name, planned } : c))
+    );
+
+    if (cat.name !== name) {
+      setTransactions((prev) =>
+        prev.map((t) => (t.category === cat.name ? { ...t, category: name } : t))
+      );
+    }
+  };
+
   const handleAddCategory = (group: BudgetGroup, name: string, planned: number) => {
     if (group !== 'Pemasukan' && unassignedCash < planned) {
       showToast(`Gagal menambah: Saldo belum dialokasikan kurang Rp ${formatRupiah(planned - unassignedCash)}, naikan pemasukan kamu/ kurangi nominal pos anggaran.`);
@@ -932,6 +956,7 @@ export default function DashboardApp() {
             budgetCategories={budgetCategories}
             transactions={transactions}
             onUpdateCategory={handleUpdateCategory}
+            onEditCategoryDetail={handleEditCategoryDetail}
             onBulkUpdateCategories={handleBulkUpdateCategories}
             onAddCategory={handleAddCategory}
             onDeleteCategory={handleDeleteCategory}

@@ -301,7 +301,7 @@ export default function Checkout() {
         }, 600);
       } else {
         setIsProcessing(false);
-        alert("Pembayaran belum lunas/diterima oleh Duitku. Silakan selesaikan pembayaran terlebih dahulu (atau tunggu beberapa menit jika sudah bayar).");
+        alert("Pembayaran belum lunas/diterima oleh Portal Uang. Silakan selesaikan pembayaran terlebih dahulu (atau tunggu beberapa menit jika sudah bayar).");
       }
     } catch (err) {
       setIsProcessing(false);
