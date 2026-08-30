@@ -22,6 +22,7 @@ import {
   AlertCircle
 } from "lucide-react";
 import { LandingLayout } from "../components/LandingLayout";
+import { checkIsAuthenticated } from "../utils/auth";
 import { 
   SUBSCRIPTION_PLANS, 
   RENEWAL_PLANS,
@@ -34,6 +35,14 @@ import {
 
 export default function Checkout() {
   const navigate = useNavigate();
+  
+  // Security handler: redirect to login if not authenticated
+  useEffect(() => {
+    if (!checkIsAuthenticated()) {
+      navigate('/login');
+    }
+  }, [navigate]);
+
   const [searchParams] = useSearchParams();
 
   // Retrieve plan and mode from URL query param or fallback
@@ -104,7 +113,27 @@ export default function Checkout() {
     }
   }
 
-  const finalTotal = Math.max(0, selectedPlan.price - extraVoucherDiscount);
+  // Prorated discount calculation for upgrades
+  let proratedDiscount = 0;
+  if (isRenewMode && userProfile.subscription && userProfile.subscription.status === 'active' && userProfile.subscription.planId !== 'free_trial' && selectedPlan.price > 0) {
+    const expiresAt = new Date(userProfile.subscription.expiresAt).getTime();
+    const now = Date.now();
+    const remainingMs = expiresAt - now;
+    if (remainingMs > 0) {
+      const remainingDays = Math.ceil(remainingMs / (1000 * 60 * 60 * 24));
+      const oldPlan = SUBSCRIPTION_PLANS.find(p => p.id === userProfile.subscription.planId);
+      if (oldPlan && oldPlan.durationDays) {
+         const dailyRate = oldPlan.price / oldPlan.durationDays;
+         proratedDiscount = Math.floor(dailyRate * remainingDays);
+         // Cap the prorated discount to max 80% of new plan price so they still pay something for upgrade
+         if (proratedDiscount > selectedPlan.price * 0.8) {
+             proratedDiscount = Math.floor(selectedPlan.price * 0.8);
+         }
+      }
+    }
+  }
+
+  const finalTotal = Math.max(0, selectedPlan.price - extraVoucherDiscount - proratedDiscount);
 
   // Request Duitku Invoice from backend whenever plan or payment method changes
   useEffect(() => {
@@ -303,10 +332,10 @@ export default function Checkout() {
         <div className="mb-8">
           <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
             <Link 
-              to="/register" 
+              to="/" 
               className="inline-flex items-center gap-2 text-xs font-bold text-stone-400 hover:text-amber-400 transition-colors"
             >
-              <ArrowLeft className="w-4 h-4" /> Kembali ke Pendaftaran
+              <ArrowLeft className="w-4 h-4" /> Kembali ke Dashboard
             </Link>
 
             {userHasUsedTrial && (
@@ -317,19 +346,31 @@ export default function Checkout() {
             )}
           </div>
 
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+          <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-6">
             <div>
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-400 text-xs font-bold uppercase tracking-wider mb-2">
                 <Lock className="w-3.5 h-3.5" /> Checkout & Aktivasi Otomatis
               </div>
               <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-white tracking-tight">
-                {isTrial ? "Aktivasi Free Trial 24 Jam" : "Pembayaran & Aktivasi Otomatis"}
+                {isTrial ? "Aktivasi Free Trial 24 Jam" : (isRenewMode ? "Perpanjang & Upgrade Paket" : "Pembayaran & Aktivasi Otomatis")}
               </h1>
-              <p className="text-xs sm:text-sm text-stone-400 mt-1">
+              <p className="text-xs sm:text-sm text-stone-400 mt-2">
                 {isTrial 
                   ? "Nikmati akses gratis seluruh 10 fitur Portal Uang selama 24 jam."
                   : "Selesaikan pembayaran sesuai paket terpilih. Paket akan aktif otomatis secara instan setelah status lunas."}
               </p>
+
+              {/* User Identity Banner */}
+              <div className="mt-6 flex items-center gap-4 bg-stone-900/60 border border-stone-800 p-3.5 rounded-2xl inline-flex shadow-inner">
+                <div className="w-11 h-11 rounded-full bg-amber-500 flex items-center justify-center text-stone-950 font-black text-lg">
+                  {userProfile.name ? userProfile.name.charAt(0).toUpperCase() : 'U'}
+                </div>
+                <div className="pr-2">
+                  <div className="text-[11px] font-bold text-stone-400 uppercase tracking-wider mb-0.5">Checkout untuk Akun:</div>
+                  <div className="text-sm font-bold text-white leading-tight">{userProfile.name}</div>
+                  <div className="text-xs text-stone-500">{userProfile.email}</div>
+                </div>
+              </div>
             </div>
 
             {/* 24-HOUR COUNTDOWN TIMER BADGE */}
@@ -424,6 +465,20 @@ export default function Checkout() {
                 </span>
               </div>
 
+              {/* Status Langganan Lama */}
+              {isRenewMode && userProfile.subscription && userProfile.subscription.planId !== 'free_trial' && (
+                <div className="mb-4 bg-sky-950/40 border border-sky-900/50 p-3 rounded-xl flex items-start gap-3">
+                  <Clock className="w-4 h-4 text-sky-400 shrink-0 mt-0.5" />
+                  <div>
+                    <div className="text-xs text-sky-400 font-bold mb-1">Status Saat Ini</div>
+                    <div className="text-[11px] text-stone-300 leading-relaxed">
+                      Paket <span className="font-bold text-white">{userProfile.subscription.planName}</span> 
+                      {' '}(Berakhir {new Date(userProfile.subscription.expiresAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}) — Perpanjang ke <span className="font-bold text-amber-400">{selectedPlan.name}</span>?
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Quick Plan Switcher for Paid Plans */}
               <div className="mb-4">
                 <div className="text-[11px] font-bold text-stone-400 uppercase tracking-wider mb-2">
@@ -451,6 +506,22 @@ export default function Checkout() {
                     );
                   })}
                 </div>
+                {selectedPlanId === 'annual' && (
+                  <div className="mt-2.5 flex items-start gap-2 bg-gradient-to-r from-amber-500/10 to-amber-500/5 p-2 rounded-lg border border-amber-500/20">
+                    <Sparkles className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                    <div className="text-[11px] text-amber-200/90 leading-tight">
+                      <strong className="text-amber-400">Pilihan Terbaik!</strong> Upgrade ke Paket Tahunan untuk fitur terlengkap, bebas biaya bulanan, dan penghematan tertinggi.
+                    </div>
+                  </div>
+                )}
+                {selectedPlanId === 'semi_annual' && (
+                  <div className="mt-2.5 flex items-start gap-2 bg-gradient-to-r from-stone-800 to-stone-800/50 p-2 rounded-lg border border-stone-700">
+                    <CheckCircle2 className="w-4 h-4 text-stone-300 shrink-0 mt-0.5" />
+                    <div className="text-[11px] text-stone-300 leading-tight">
+                      Paket 6 Bulan adalah pilihan pas untuk komitmen jangka menengah. Lebih hemat dari paket bulanan.
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Plan Name & Tagline */}
@@ -490,6 +561,12 @@ export default function Checkout() {
 
               {/* Customer summary */}
               <div className="pt-4 border-t border-stone-800 text-xs space-y-2 bg-stone-950/40 p-3 rounded-xl">
+                {proratedDiscount > 0 && (
+                  <div className="flex justify-between items-center text-emerald-400 bg-emerald-950/30 -mx-3 px-3 py-2 mb-2 border-b border-emerald-900/50">
+                    <span className="font-medium">Diskon Sisa Hari Paket Lama:</span>
+                    <span className="font-bold tracking-wider">-Rp {proratedDiscount.toLocaleString('id-ID')}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-stone-400">
                   <span>Nama Akun:</span>
                   <span className="text-white font-semibold">{userProfile.name}</span>
@@ -854,6 +931,14 @@ export default function Checkout() {
                         Notifikasi persetujuan pembayaran akan otomatis dikirimkan ke aplikasi {ewalletProvider.toUpperCase()} Anda.
                       </div>
                     </div>
+                  </div>
+                )}
+
+                {/* Cancel Anytime Trust Badge */}
+                {!isTrial && (
+                  <div className="flex justify-center items-center gap-1.5 mb-4 text-[11px] text-stone-400 bg-stone-900/40 p-2.5 rounded-xl border border-stone-800/80">
+                    <Shield className="w-3.5 h-3.5 text-stone-500" />
+                    <span>Langganan dapat dibatalkan kapan saja melalui Pengaturan. Tidak ada biaya tersembunyi.</span>
                   </div>
                 )}
 

@@ -34,6 +34,7 @@ import {
 import * as SampleData from "./data/sampleData";
 
 import { Navbar } from './components/Navbar';
+import { getUserProfile } from './utils/subscription';
 import { DashboardView } from './components/DashboardView';
 import { ZeroBasedBudgetView } from './components/ZeroBasedBudgetView';
 import { TransactionsView } from './components/TransactionsView';
@@ -132,6 +133,18 @@ export default function DashboardApp() {
   const location = useLocation();
   const [socials, setSocials] = useState<any>({});
   const pwa = usePWAInstall();
+  
+  // Subscription Expiry Logic
+  const userProfile = getUserProfile();
+  const subStatus = userProfile.subscription?.status || 'active';
+  const expiresAt = userProfile.subscription?.expiresAt ? new Date(userProfile.subscription.expiresAt).getTime() : Date.now();
+  const isExpired = subStatus === 'expired' || Date.now() > expiresAt;
+  const isTrial = userProfile.subscription?.planId === 'free_trial';
+  const daysSinceExpiry = isExpired ? Math.floor((Date.now() - expiresAt) / (1000 * 60 * 60 * 24)) : -1;
+  const inGracePeriod = isExpired && daysSinceExpiry >= 0 && daysSinceExpiry <= 7;
+  const isBlocked = isExpired && daysSinceExpiry > 7;
+  const canBackupWhenBlocked = isExpired && daysSinceExpiry >= 30;
+
   
   useEffect(() => {
     fetch('/api/public-settings')
@@ -831,13 +844,73 @@ export default function DashboardApp() {
         transactions={transactions}
         budgetCategories={budgetCategories}
         notificationSettings={notificationSettings}
-        onOpenInstallModal={() => pwa.setShowModal(true)}
+        onOpenInstallModal={() => pwa.promptInstall()}
         isStandalone={pwa.isStandalone}
       />
 
+      {inGracePeriod && !isBlocked && (
+        <div className="bg-rose-500/10 border-b border-rose-500/20 px-4 py-3 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-sm">
+          <div className="flex items-start sm:items-center gap-3">
+            <AlertTriangle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5 sm:mt-0" />
+            <div className="text-sm">
+              <span className="font-bold text-rose-400">
+                {isTrial ? "Masa Uji Coba Habis." : "Masa Berlangganan Habis."}
+              </span>{' '}
+              <span className="text-stone-300">
+                Anda sedang dalam masa tenggang ({7 - daysSinceExpiry} hari tersisa). Mohon perpanjang langganan Anda untuk menghindari penutupan akses.
+              </span>
+            </div>
+          </div>
+          <button
+            onClick={() => navigate('/checkout')}
+            className="whitespace-nowrap px-4 py-1.5 bg-rose-500 hover:bg-rose-600 text-white text-xs font-bold rounded-lg transition-colors"
+          >
+            Perpanjang Sekarang
+          </button>
+        </div>
+      )}
+
       {/* Main Container */}
-      <main id="main-app-container" className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6">
-        <Routes>
+      <main id="main-app-container" className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 relative">
+        {isBlocked ? (
+          <div className="absolute inset-0 z-40 bg-stone-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-stone-900 border border-stone-800 p-8 rounded-3xl max-w-md w-full shadow-2xl text-center space-y-6 animate-in fade-in zoom-in-95">
+              <div className="w-20 h-20 bg-rose-500/10 rounded-full flex items-center justify-center mx-auto mb-2">
+                <AlertTriangle className="w-10 h-10 text-rose-500" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-black text-white mb-2">Akses Terkunci</h2>
+                <p className="text-sm text-stone-400 leading-relaxed">
+                  Masa tenggang Anda telah habis. Silakan perpanjang langganan untuk kembali mengakses data dan seluruh fitur canggih Portal Uang.
+                </p>
+              </div>
+              <div className="space-y-3 pt-2">
+                <button
+                  onClick={() => navigate('/checkout')}
+                  className="w-full py-3.5 bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold rounded-xl transition-colors shadow-lg shadow-amber-500/20"
+                >
+                  Perpanjang Langganan
+                </button>
+                {canBackupWhenBlocked && (
+                  <button
+                    onClick={() => setIsBackupOpen(true)}
+                    className="w-full py-3 bg-stone-800 hover:bg-stone-700 text-stone-300 font-bold rounded-xl transition-colors"
+                  >
+                    Backup Data Anda
+                  </button>
+                )}
+              </div>
+              {canBackupWhenBlocked && (
+                <p className="text-[11px] text-stone-500 leading-tight">
+                  Anda tidak memperpanjang langganan lebih dari 30 hari, sehingga kami membuka akses backup jika Anda ingin mengamankan data Anda.
+                </p>
+              )}
+            </div>
+          </div>
+        ) : null}
+
+        <div className={isBlocked ? "pointer-events-none blur-[2px] opacity-40 select-none" : ""}>
+          <Routes>
 
 
         <Route path="dashboard" element={
@@ -954,7 +1027,7 @@ export default function DashboardApp() {
             setSettings={setNotificationSettings}
             showToast={showToast}
             userId={userId}
-            onOpenInstallModal={() => pwa.setShowModal(true)}
+            onOpenInstallModal={() => pwa.promptInstall()}
             isStandalone={pwa.isStandalone}
           />
         } />
@@ -963,12 +1036,13 @@ export default function DashboardApp() {
           <GuideView setActiveTab={handleSetActiveTab} onLoadSampleData={handleLoadSampleData} />
         } />
       
-        <Route path="settings/telegram" element={<SettingsView settings={notificationSettings} setSettings={setNotificationSettings} showToast={showToast} userId={userId} onOpenInstallModal={() => pwa.setShowModal(true)} isStandalone={pwa.isStandalone} />} />
+        <Route path="settings/telegram" element={<SettingsView settings={notificationSettings} setSettings={setNotificationSettings} showToast={showToast} userId={userId} onOpenInstallModal={() => pwa.promptInstall()} isStandalone={pwa.isStandalone} />} />
         <Route path="billing/checkout" element={<BillingCheckoutView />} />
         <Route path="billing/success" element={<BillingSuccessView />} />
         <Route path="*" element={<Navigate to="dashboard" replace />} />
 
         </Routes>
+        </div>
       </main>
 
       {/* Footer */}

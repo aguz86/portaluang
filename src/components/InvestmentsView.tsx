@@ -376,20 +376,20 @@ export const InvestmentsView: React.FC<InvestmentsViewProps> = ({ investments, s
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-stone-900 border border-stone-800 rounded-2xl p-5 shadow-sm">
+        <div className="bg-stone-900 border border-stone-800 rounded-2xl p-4 sm:p-5 shadow-sm">
           <p className="text-sm text-stone-400 font-medium mb-1">Total Nilai Pasar</p>
-          <p className="text-3xl font-extrabold text-stone-100 font-mono tracking-tight">{formatRupiah(totalInvestmentValue)}</p>
+          <p className="text-2xl lg:text-3xl font-extrabold text-stone-100 font-mono tracking-tight truncate">{formatRupiah(totalInvestmentValue)}</p>
         </div>
-        <div className="bg-stone-900 border border-stone-800 rounded-2xl p-5 shadow-sm">
+        <div className="bg-stone-900 border border-stone-800 rounded-2xl p-4 sm:p-5 shadow-sm">
           <p className="text-sm text-stone-400 font-medium mb-1">Total Modal Disetor</p>
-          <p className="text-3xl font-extrabold text-stone-300 font-mono tracking-tight">{formatRupiah(totalCostBasis)}</p>
+          <p className="text-2xl lg:text-3xl font-extrabold text-stone-300 font-mono tracking-tight truncate">{formatRupiah(totalCostBasis)}</p>
         </div>
-        <div className="bg-stone-900 border border-stone-800 rounded-2xl p-5 shadow-sm">
+        <div className="bg-stone-900 border border-stone-800 rounded-2xl p-4 sm:p-5 shadow-sm">
           <p className="text-sm text-stone-400 font-medium mb-1">Total Return</p>
-          <p className={`text-3xl font-extrabold font-mono tracking-tight ${totalReturn >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-            {totalReturn >= 0 ? '+' : ''}{formatRupiah(totalReturn)}
-            <span className="text-sm ml-2">({returnPercentage.toFixed(2)}%)</span>
-          </p>
+          <div className={`flex flex-wrap items-baseline gap-x-2 text-2xl lg:text-3xl font-extrabold font-mono tracking-tight ${totalReturn >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+            <span className="truncate max-w-full">{totalReturn >= 0 ? '+' : ''}{formatRupiah(totalReturn)}</span>
+            <span className="text-sm shrink-0">({returnPercentage.toFixed(2)}%)</span>
+          </div>
         </div>
       </div>
 

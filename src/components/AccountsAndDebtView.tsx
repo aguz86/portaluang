@@ -323,19 +323,19 @@ export const AccountsAndDebtView: React.FC<AccountsAndDebtViewProps> = ({
           {/* Background decorative blur */}
           <div className="absolute -top-10 -right-10 w-32 h-32 bg-amber-500/5 rounded-full blur-3xl pointer-events-none"></div>
           
-          <div className="flex flex-col md:flex-row md:items-start justify-between gap-5 relative z-10">
-            <div className="flex-1">
+          <div className="flex flex-col gap-6 relative z-10 w-full block">
+            <div>
               <div className="flex items-center gap-2 mb-2">
                 <Calculator className="w-5 h-5 text-amber-400" />
                 <h3 className="text-lg font-bold text-stone-100">Simulator Pelunasan Utang</h3>
               </div>
-              <p className="text-xs sm:text-sm text-stone-400 leading-relaxed max-w-lg">
+              <p className="text-xs sm:text-sm text-stone-400 leading-relaxed">
                 Pilih strategi pelunasan dan lihat bagaimana tambahan dana ekstra setiap bulannya dapat membebaskan Anda dari utang lebih cepat dan menghemat biaya bunga.
               </p>
             </div>
 
             {/* Strategy Toggle */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full mt-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
               {/* Avalanche Card */}
               <button
                 onClick={() => setPayoffStrategy('avalanche')}

@@ -1,12 +1,21 @@
-import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { FaWhatsapp, FaTiktok, FaThreads, FaInstagram, FaYoutube, FaFacebook } from 'react-icons/fa6';
+import { ChevronDown, User, Settings, LogOut } from 'lucide-react';
 import { useGlobalSettings } from '../hooks/useGlobalSettings';
 import { isSafeUrl } from '../utils/security';
+import { checkIsAuthenticated, clearUserAuthSession } from '../utils/auth';
+import { getUserProfile } from '../utils/subscription';
 
 export const LandingLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const navigate = useNavigate();
   const { settings } = useGlobalSettings();
   const [socials, setSocials] = useState<any>({});
+  
+  const [isAuth, setIsAuth] = useState(false);
+  const [userName, setUserName] = useState('');
+  const [showDropdown, setShowDropdown] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     fetch('/api/public-settings')
       .then(res => res.json())
@@ -17,6 +26,35 @@ export const LandingLayout: React.FC<{ children: React.ReactNode }> = ({ childre
       })
       .catch(console.error);
   }, []);
+
+  useEffect(() => {
+    const authStatus = checkIsAuthenticated();
+    setIsAuth(authStatus);
+    if (authStatus) {
+      const profile = getUserProfile();
+      if (profile && profile.name) {
+        setUserName(profile.name);
+      } else {
+        setUserName('Pengguna');
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleLogout = () => {
+    clearUserAuthSession();
+    setIsAuth(false);
+    navigate('/login');
+  };
 
   return (
     <div className="min-h-screen bg-stone-950 text-stone-100 font-sans selection:bg-amber-500 selection:text-stone-950 flex flex-col">
@@ -39,10 +77,45 @@ export const LandingLayout: React.FC<{ children: React.ReactNode }> = ({ childre
             </div>
             
             <div className="flex items-center space-x-4">
-              <Link to="/login" className="text-stone-300 hover:text-white transition-colors text-sm font-medium">Masuk</Link>
-              <Link to="/register" className="bg-amber-500 hover:bg-amber-400 text-stone-950 px-4 py-2 rounded-lg font-bold text-sm transition-colors">
-                Coba 24 Jam
-              </Link>
+              {isAuth ? (
+                <div className="relative" ref={dropdownRef}>
+                  <button 
+                    onClick={() => setShowDropdown(!showDropdown)}
+                    className="flex items-center gap-1.5 text-stone-300 hover:text-white transition-colors text-sm font-medium focus:outline-none"
+                  >
+                    <span className="truncate max-w-[120px] md:max-w-[150px]">Halo, {userName}</span>
+                    <ChevronDown className="w-4 h-4" />
+                  </button>
+
+                  {showDropdown && (
+                    <div className="absolute right-0 mt-2 w-48 bg-stone-900 border border-stone-800 rounded-xl shadow-xl py-2 z-50 animate-in fade-in slide-in-from-top-2">
+                      <Link onClick={() => setShowDropdown(false)} to="/app/dashboard" className="flex items-center gap-2 px-4 py-2 text-sm text-stone-300 hover:text-white hover:bg-stone-800 transition-colors rounded-t-xl">
+                        <User className="w-4 h-4" /> Dashboard
+                      </Link>
+                      <Link onClick={() => setShowDropdown(false)} to="/app/profile" className="flex items-center gap-2 px-4 py-2 text-sm text-stone-300 hover:text-white hover:bg-stone-800 transition-colors">
+                        <Settings className="w-4 h-4" /> Pengaturan Akun
+                      </Link>
+                      <div className="h-px bg-stone-800 my-1"></div>
+                      <button 
+                        onClick={() => {
+                          setShowDropdown(false);
+                          handleLogout();
+                        }}
+                        className="w-full flex items-center gap-2 px-4 py-2 text-sm text-rose-400 hover:text-rose-300 hover:bg-stone-800 transition-colors text-left rounded-b-xl"
+                      >
+                        <LogOut className="w-4 h-4" /> Keluar
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <>
+                  <Link to="/login" className="text-stone-300 hover:text-white transition-colors text-sm font-medium">Masuk</Link>
+                  <Link to="/register" className="bg-amber-500 hover:bg-amber-400 text-stone-950 px-4 py-2 rounded-lg font-bold text-sm transition-colors">
+                    Coba 24 Jam
+                  </Link>
+                </>
+              )}
             </div>
           </div>
         </div>
