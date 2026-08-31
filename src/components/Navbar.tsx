@@ -39,7 +39,6 @@ interface NavbarProps {
   budgetCategories?: BudgetCategory[];
   notificationSettings?: NotificationSettings;
   onOpenInstallModal?: () => void;
-  isStandalone?: boolean;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({

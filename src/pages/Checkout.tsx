@@ -471,9 +471,20 @@ export default function Checkout() {
                   <Clock className="w-4 h-4 text-sky-400 shrink-0 mt-0.5" />
                   <div>
                     <div className="text-xs text-sky-400 font-bold mb-1">Status Saat Ini</div>
-                    <div className="text-[11px] text-stone-300 leading-relaxed">
-                      Paket <span className="font-bold text-white">{userProfile.subscription.planName}</span> 
-                      {' '}(Berakhir {new Date(userProfile.subscription.expiresAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}) — Perpanjang ke <span className="font-bold text-amber-400">{selectedPlan.name}</span>?
+                    <div className="text-[11px] text-stone-300 leading-relaxed space-y-1">
+                      <p>Masa aktif Anda saat ini berakhir pada <span className="font-bold text-white">{new Date(userProfile.subscription.expiresAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}</span>.</p>
+                      <p>Pembelian <span className="font-bold text-amber-400">{selectedPlan.name}</span> akan menambah masa aktif selama <span className="font-bold text-amber-400">{selectedPlan.durationDays} Hari</span> dari tanggal tersebut.</p>
+                      <div className="mt-1.5 pt-1.5 border-t border-sky-900/50 text-sky-300 font-medium">
+                        Total Estimasi Berakhir: <span className="font-bold text-sky-200">
+                          {(() => {
+                            const currentExpiry = new Date(userProfile.subscription.expiresAt);
+                            const now = new Date();
+                            const baseDate = currentExpiry > now ? currentExpiry : now;
+                            const newExpiry = new Date(baseDate.getTime() + selectedPlan.durationDays * 24 * 60 * 60 * 1000);
+                            return newExpiry.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+                          })()}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -482,7 +493,7 @@ export default function Checkout() {
               {/* Quick Plan Switcher for Paid Plans */}
               <div className="mb-4">
                 <div className="text-[11px] font-bold text-stone-400 uppercase tracking-wider mb-2">
-                  Ganti Pilihan Paket:
+                  Pilihan Perpanjangan:
                 </div>
                 <div className="grid grid-cols-3 gap-1.5 bg-stone-950 p-1.5 rounded-2xl border border-stone-800">
                   {RENEWAL_PLANS.map((p) => {

@@ -54,6 +54,34 @@ export interface UserProfile {
   createdAt: string;
 }
 
+export const syncSubscriptionPlans = async () => {
+  try {
+    const res = await fetch('/api/subscriptions');
+    const data = await res.json();
+    if (data.success && data.data && data.data.length > 0) {
+      const dbPlans = data.data;
+      SUBSCRIPTION_PLANS.forEach((p, idx) => {
+         const match = dbPlans.find((dp: any) => dp.id === p.id);
+         if (match) {
+           SUBSCRIPTION_PLANS[idx].price = match.price;
+           SUBSCRIPTION_PLANS[idx].name = match.name;
+           if (match.features && match.features.length > 0) {
+             SUBSCRIPTION_PLANS[idx].features = match.features;
+           }
+         }
+      });
+      // Update RENEWAL_PLANS to reflect the changes in price/name
+      RENEWAL_PLANS.length = 0;
+      RENEWAL_PLANS.push(...SUBSCRIPTION_PLANS.filter(p => p.id !== 'free_trial'));
+      
+      // Dispatch event to force re-render if needed
+      window.dispatchEvent(new Event('plans-updated'));
+    }
+  } catch (err) {
+    console.error('Failed to sync plans', err);
+  }
+};
+
 export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
   {
     id: 'free_trial',

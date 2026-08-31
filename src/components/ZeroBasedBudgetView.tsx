@@ -74,7 +74,7 @@ export const ZeroBasedBudgetView: React.FC<ZeroBasedBudgetViewProps> = ({
       return;
     }
 
-    setPinMode(hasPin && action !== 'setup' ? 'verify' : 'setup'); // We might want to force setup if no PIN, but here verify checks PIN. If no PIN and action is backup, we need setup.
+      // We might want to force setup if no PIN, but here verify checks PIN. If no PIN and action is backup, we need setup.
     if (!hasPin) {
       setPinMode('setup');
     } else {

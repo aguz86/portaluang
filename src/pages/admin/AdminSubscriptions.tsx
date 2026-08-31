@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Package, Plus, Edit2, Trash2, Save, X, Check, Loader2 } from 'lucide-react';
+import { SUBSCRIPTION_PLANS, syncSubscriptionPlans } from '../../utils/subscription';
 
 interface Plan {
   id: string;
@@ -26,12 +27,15 @@ export const AdminSubscriptions: React.FC = () => {
       if (data.success && data.data && data.data.length > 0) {
         setPlans(data.data);
       } else {
-        // Default initial data if none
-        setPlans([
-          { id: '1', name: 'Free Tier', price: 0, users: 1024, features: ['Basic tracking', 'Up to 3 accounts'] },
-          { id: '2', name: 'Pro Monthly', price: 29000, users: 184, features: ['Unlimited accounts', 'Pro reports', 'No ads'] },
-          { id: '3', name: 'Pro Annual', price: 290000, users: 40, features: ['All Pro features', '2 months free'] },
-        ]);
+        // Default initial data if none, mapping from actual app plans
+        const defaultPlans = SUBSCRIPTION_PLANS.map(p => ({
+          id: p.id,
+          name: p.name,
+          price: p.price,
+          users: Math.floor(Math.random() * 500),
+          features: p.features
+        }));
+        setPlans(defaultPlans);
       }
     } catch (err) {
       console.error(err);
@@ -44,12 +48,17 @@ export const AdminSubscriptions: React.FC = () => {
     try {
       await fetch('/api/admin/subscriptions', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+        },
         body: JSON.stringify({ plans: newPlans })
       });
+      // Sync globally
+      await syncSubscriptionPlans();
     } catch (err) {
       console.error(err);
-      alert('Gagal menyimpan ke server');
+      alert("Gagal menyimpan ke server");
     }
   };
 

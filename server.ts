@@ -3,6 +3,7 @@ import express from 'express';
 import rateLimit from 'express-rate-limit';
 import path from 'path';
 import crypto from 'crypto';
+import cron from 'node-cron';
 import { encrypt, decrypt } from './server/cryptoUtils';
 import { GoogleGenAI } from '@google/genai';
 import { createServer as createViteServer } from 'vite';
@@ -12,17 +13,18 @@ const yahooFinance = new YahooFinance();
 import * as cheerio from 'cheerio';
 import * as OTPAuth from 'otpauth';
 import QRCode from 'qrcode';
-import { 
-  getDuitkuConfig, 
-  generateDuitkuInquirySignature, 
-  verifyDuitkuCallbackSignature, 
+import {
+  getDuitkuConfig,
+  generateDuitkuInquirySignature,
+  verifyDuitkuCallbackSignature,
   generateDuitkuStatusSignature,
-  DUITKU_CHANNELS, 
-  getAllTransactions, 
-  saveTransaction, 
+  DUITKU_CHANNELS,
+  getAllTransactions,
+  saveTransaction,
   updateTransactionStatus,
-  DuitkuTransaction 
+  DuitkuTransaction
 } from './server/duitku';
+import { sendInvoiceEmail } from './server/emailService';
 const appStateDb = new Map();
 
 let pool: any = null;
@@ -1283,6 +1285,13 @@ Berikan panduan pelunasan langkah demi langkah yang jelas dengan simulasi matema
               [userKey, JSON.stringify(userData)]
             );
             console.log(`[AUTO-ACTIVATION] Subscription automatically activated for user ${userKey} with plan ${updatedTx.planName}`);
+            
+            // Send email invoice asynchronously
+            if (updatedTx.email) {
+              sendInvoiceEmail(updatedTx.email, updatedTx).catch(err => {
+                console.error(`[Email Service] Async email sending failed for ${updatedTx.email}:`, err);
+              });
+            }
           } catch (actErr) {
             console.error('Error activating user in DB during webhook:', actErr);
           }
@@ -1685,6 +1694,47 @@ Berikan panduan pelunasan langkah demi langkah yang jelas dengan simulasi matema
   });
 
   // 5. Send message via Telegram Bot
+  app.post('/api/telegram/test-push', async (req, res) => {
+    try {
+      const { userId, message } = req.body;
+      if (!userId || !message) return res.status(400).json({ success: false, error: 'Missing userId or message' });
+
+      const userRes = await pool.query('SELECT data FROM app_state WHERE id = $1', [userId]);
+      if (userRes.rows.length === 0) return res.status(404).json({ success: false, error: 'User not found' });
+      
+      let userData = userRes.rows[0].data;
+      if (typeof userData === 'string') userData = JSON.parse(userData);
+
+      const chatId = userData.notificationSettings?.telegramChatId;
+      if (!chatId) return res.status(400).json({ success: false, error: 'User does not have a linked Telegram account' });
+
+      const botInfo = await getTelegramBotInfo();
+      if (!botInfo.token) {
+        return res.status(400).json({ success: false, error: 'Telegram bot belum dikonfigurasi' });
+      }
+
+      const telegramRes = await fetch(`https://api.telegram.org/bot${botInfo.token}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          chat_id: chatId, 
+          text: message,
+          parse_mode: 'Markdown'
+        })
+      });
+
+      const respJson: any = await telegramRes.json();
+      if (respJson.ok) {
+        res.json({ success: true, result: respJson.result });
+      } else {
+        res.status(500).json({ success: false, error: respJson.description || 'Telegram API error' });
+      }
+    } catch (err: any) {
+      console.error('Telegram Test Push Error:', err);
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
   app.post('/api/telegram/send', async (req, res) => {
     try {
       const { chatId, message } = req.body;
@@ -2028,6 +2078,55 @@ Berikan panduan pelunasan langkah demi langkah yang jelas dengan simulasi matema
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }
+
+  // Start Cron Jobs
+  cron.schedule('* * * * *', async () => {
+    try {
+      const now = new Date();
+      // Adjust to UTC+7 (WIB) manually for local time matching if needed
+      // Actually we'll just check based on the local time of the server (which is running the cron)
+      // Usually users will input HH:mm
+      const currentHours = String(now.getHours()).padStart(2, '0');
+      const currentMinutes = String(now.getMinutes()).padStart(2, '0');
+      const currentTime = `${currentHours}:${currentMinutes}`;
+
+      const usersRes = await pool.query("SELECT data FROM app_state WHERE id != 'global_settings'");
+      const botInfo = await getTelegramBotInfo();
+
+      if (!botInfo.token) return;
+
+      for (const row of usersRes.rows) {
+        let userData = row.data;
+        if (typeof userData === 'string') {
+          try {
+            userData = JSON.parse(userData);
+          } catch (e) { continue; }
+        }
+
+        const ns = userData.notificationSettings;
+        if (ns?.dailyReminderEnabled && ns?.telegramChatId && ns?.dailyReminderTime === currentTime) {
+          const note = ns.dailyReminderNote || 'Jangan impulsif buying, jangan lapar mata, ingat goals';
+          
+          try {
+            await fetch(`https://api.telegram.org/bot${botInfo.token}/sendMessage`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ 
+                chat_id: ns.telegramChatId, 
+                text: `📋 *DAILY CHECKLIST PENGINGAT*\n\n${note}`,
+                parse_mode: 'Markdown'
+              })
+            });
+            console.log(`[Cron] Sent daily reminder to ${ns.telegramChatId}`);
+          } catch (e) {
+            console.error('[Cron] Failed to send daily reminder:', e);
+          }
+        }
+      }
+    } catch (e) {
+      console.error('[Cron] Error running daily reminder job:', e);
+    }
+  });
 
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`Portal Uang server running on http://0.0.0.0:${PORT}`);

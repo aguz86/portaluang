@@ -102,6 +102,9 @@ export interface NotificationSettings {
   telegramEnabled: boolean;
   pushEnabled: boolean;
   dueReminderDays: number;
+  dailyReminderNote?: string;
+  dailyReminderTime?: string;
+  dailyReminderEnabled?: boolean;
 }
 
 export type ActiveTab = 

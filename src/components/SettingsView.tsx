@@ -18,7 +18,9 @@ import {
   ShieldCheck,
   Download,
   Laptop,
-  CheckCircle
+  CheckCircle,
+  FileText,
+  AlertCircle
 } from 'lucide-react';
 import { TelegramLinkModal } from './TelegramLinkModal';
 
@@ -29,7 +31,6 @@ interface SettingsViewProps {
   showToast: (msg: string) => void;
   userId?: string;
   onOpenInstallModal?: () => void;
-  isStandalone?: boolean;
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({ 
@@ -454,6 +455,109 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
       </div>
       
+      {/* Auto Checklist & Daily Note Card */}
+      <div className="bg-stone-900 border border-stone-800 rounded-3xl p-6 shadow-sm space-y-6">
+        <div className="flex flex-col gap-5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="w-10 h-10 rounded-2xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-400 flex items-center justify-center">
+                <FileText className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-bold text-stone-100 text-base">Note & Auto Checklist</h3>
+                <span className="text-xs text-stone-400">Pengingat harian otomatis via Bot Telegram</span>
+              </div>
+            </div>
+
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input 
+                type="checkbox" 
+                className="sr-only peer"
+                checked={localSettings.dailyReminderEnabled || false}
+                onChange={(e) => {
+                  const updated = { ...localSettings, dailyReminderEnabled: e.target.checked };
+                  setLocalSettings(updated);
+                  setSettings(updated);
+                }}
+                disabled={!isTelegramConnected}
+              />
+              <div className={`w-11 h-6 bg-stone-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all ${isTelegramConnected ? 'peer-checked:bg-indigo-500' : 'opacity-50'}`}></div>
+            </label>
+          </div>
+
+          <div className="space-y-4">
+            {!isTelegramConnected && (
+              <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-3 rounded-xl text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                Hubungkan akun Telegram terlebih dahulu untuk menggunakan fitur ini.
+              </div>
+            )}
+            
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-stone-300">Waktu Pengingat (Setiap Hari)</label>
+              <input
+                type="time"
+                className="w-full bg-stone-950/50 border border-stone-800 text-stone-200 text-sm rounded-xl px-4 py-2.5 focus:outline-none focus:border-indigo-500/50 transition-colors"
+                value={localSettings.dailyReminderTime || '08:00'}
+                onChange={(e) => {
+                  const updated = { ...localSettings, dailyReminderTime: e.target.value };
+                  setLocalSettings(updated);
+                  setSettings(updated);
+                }}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-stone-300">Pesan / Checklist Khusus</label>
+              <textarea
+                className="w-full bg-stone-950/50 border border-stone-800 text-stone-200 text-sm rounded-xl px-4 py-3 focus:outline-none focus:border-indigo-500/50 transition-colors min-h-[100px] resize-none"
+                placeholder="Jangan impulsif buying, jangan lapar mata, ingat goals"
+                value={localSettings.dailyReminderNote ?? 'Jangan impulsif buying, jangan lapar mata, ingat goals'}
+                onChange={(e) => {
+                  const updated = { ...localSettings, dailyReminderNote: e.target.value };
+                  setLocalSettings(updated);
+                  setSettings(updated);
+                }}
+              ></textarea>
+            </div>
+            
+            <button
+              onClick={async () => {
+                if (!isTelegramConnected) {
+                  showToast('Hubungkan Telegram terlebih dahulu');
+                  return;
+                }
+                const note = localSettings.dailyReminderNote || 'Jangan impulsif buying, jangan lapar mata, ingat goals';
+                const time = localSettings.dailyReminderTime || '08:00';
+                
+                showToast(`Menguji pengiriman checklist...`);
+                try {
+                  const res = await fetch('/api/telegram/test-push', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                      userId: effectiveUserId, 
+                      message: `📋 *DAILY CHECKLIST PENGINGAT*\n\n${note}` 
+                    })
+                  });
+                  if (res.ok) {
+                    showToast(`Checklist berhasil dikirim! Akan diulangi setiap pukul ${time}`);
+                  } else {
+                    showToast('Gagal mengirim uji coba checklist');
+                  }
+                } catch (e) {
+                  showToast('Terjadi kesalahan koneksi saat menguji checklist');
+                }
+              }}
+              className="w-full py-2.5 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 text-indigo-400 text-xs font-bold transition-colors disabled:opacity-50"
+              disabled={!isTelegramConnected}
+            >
+              Simpan & Uji Coba Kirim Sekarang
+            </button>
+          </div>
+        </div>
+      </div>
+
       {/* Progressive Web App (PWA) Device Installation Card */}
       <div className="bg-stone-900 border border-stone-800 rounded-3xl p-6 shadow-sm space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-4">
