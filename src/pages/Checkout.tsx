@@ -89,6 +89,46 @@ export default function Checkout() {
   } | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string>("");
 
+  const selectedPlan = SUBSCRIPTION_PLANS.find(p => p.id === selectedPlanId) || SUBSCRIPTION_PLANS[3];
+  const isTrial = selectedPlan.id === 'free_trial';
+
+  // Pricing calculations
+  const originalPrice = selectedPlan.originalPrice || selectedPlan.price;
+  const baseDiscount = selectedPlan.originalPrice ? selectedPlan.originalPrice - selectedPlan.price : 0;
+  
+  let extraVoucherDiscount = 0;
+  if (appliedVoucher && selectedPlan.price > 0) {
+    if (appliedVoucher.type === 'percent') {
+      extraVoucherDiscount = Math.round((selectedPlan.price * appliedVoucher.discount) / 100);
+    } else {
+      extraVoucherDiscount = Math.min(appliedVoucher.discount, selectedPlan.price);
+    }
+  }
+
+  // Prorated discount calculation for upgrades
+  let proratedDiscount = 0;
+  if (isRenewMode && userProfile.subscription && userProfile.subscription.status === 'active' && userProfile.subscription.planId !== 'free_trial' && selectedPlan.price > 0) {
+    const expiresAt = new Date(userProfile.subscription.expiresAt).getTime();
+    const now = Date.now();
+    const remainingMs = expiresAt - now;
+    
+    if (remainingMs > 0) {
+      const remainingDays = Math.ceil(remainingMs / (1000 * 60 * 60 * 24));
+      const oldPlan = SUBSCRIPTION_PLANS.find(p => p.id === userProfile.subscription.planId);
+      if (oldPlan && oldPlan.durationDays) {
+         const dailyRate = oldPlan.price / oldPlan.durationDays;
+         proratedDiscount = Math.floor(dailyRate * remainingDays);
+         
+         // Cap the prorated discount to max 80% of new plan price so they still pay something for upgrade
+         if (proratedDiscount > selectedPlan.price * 0.8) {
+             proratedDiscount = Math.floor(selectedPlan.price * 0.8);
+         }
+      }
+    }
+  }
+
+  const finalTotal = Math.max(0, selectedPlan.price - extraVoucherDiscount - proratedDiscount);
+
   const [duitkuMethods, setDuitkuMethods] = useState<any[]>([]);
   const [methodsLoading, setMethodsLoading] = useState(true);
 
@@ -118,43 +158,7 @@ export default function Checkout() {
     return `INV-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}-${rand}`;
   });
 
-  const selectedPlan = SUBSCRIPTION_PLANS.find(p => p.id === selectedPlanId) || SUBSCRIPTION_PLANS[3];
-  const isTrial = selectedPlan.id === 'free_trial';
 
-  // Pricing calculations
-  const originalPrice = selectedPlan.originalPrice || selectedPlan.price;
-  const baseDiscount = selectedPlan.originalPrice ? selectedPlan.originalPrice - selectedPlan.price : 0;
-  
-  let extraVoucherDiscount = 0;
-  if (appliedVoucher && selectedPlan.price > 0) {
-    if (appliedVoucher.type === 'percent') {
-      extraVoucherDiscount = Math.round((selectedPlan.price * appliedVoucher.discount) / 100);
-    } else {
-      extraVoucherDiscount = Math.min(appliedVoucher.discount, selectedPlan.price);
-    }
-  }
-
-  // Prorated discount calculation for upgrades
-  let proratedDiscount = 0;
-  if (isRenewMode && userProfile.subscription && userProfile.subscription.status === 'active' && userProfile.subscription.planId !== 'free_trial' && selectedPlan.price > 0) {
-    const expiresAt = new Date(userProfile.subscription.expiresAt).getTime();
-    const now = Date.now();
-    const remainingMs = expiresAt - now;
-    if (remainingMs > 0) {
-      const remainingDays = Math.ceil(remainingMs / (1000 * 60 * 60 * 24));
-      const oldPlan = SUBSCRIPTION_PLANS.find(p => p.id === userProfile.subscription.planId);
-      if (oldPlan && oldPlan.durationDays) {
-         const dailyRate = oldPlan.price / oldPlan.durationDays;
-         proratedDiscount = Math.floor(dailyRate * remainingDays);
-         // Cap the prorated discount to max 80% of new plan price so they still pay something for upgrade
-         if (proratedDiscount > selectedPlan.price * 0.8) {
-             proratedDiscount = Math.floor(selectedPlan.price * 0.8);
-         }
-      }
-    }
-  }
-
-  const finalTotal = Math.max(0, selectedPlan.price - extraVoucherDiscount - proratedDiscount);
 
   // Request Duitku Invoice from backend whenever plan or payment method changes
   useEffect(() => {
@@ -845,7 +849,7 @@ export default function Checkout() {
 
                   <button
                     type="button"
-                    onClick={() => setPaymentMethod(renderedVaList[0] || 'va_bca')} style={{ display: hasVA ? 'flex' : 'none' }}
+                    onClick={() => setPaymentMethod((renderedVaList[0] as any) || 'va_bca')} style={{ display: hasVA ? 'flex' : 'none' }}
                     className={`p-3.5 rounded-2xl border text-center transition-all flex flex-col items-center justify-center gap-1.5 ${
                       paymentMethod?.startsWith('va_')
                         ? 'bg-amber-500/15 border-amber-500 text-amber-300 font-bold shadow-md ring-1 ring-amber-500/40'

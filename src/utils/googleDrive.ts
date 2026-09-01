@@ -1,5 +1,5 @@
 const FALLBACK_CLIENT_ID = "2650368982-2pvrjvr293snin1fa6150024rehp4eet.apps.googleusercontent.com";
-const CLIENT_ID = import.meta.env.VITE_GDRIVE_CLIENT_ID || FALLBACK_CLIENT_ID;
+const CLIENT_ID = (import.meta as any).env.VITE_GDRIVE_CLIENT_ID || FALLBACK_CLIENT_ID;
 const SCOPES = "https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.readonly";
 
 export const getDriveToken = (): Promise<string> => {

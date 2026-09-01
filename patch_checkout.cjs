@@ -1,104 +1,53 @@
 const fs = require('fs');
-let content = fs.readFileSync('src/pages/Checkout.tsx', 'utf8');
+let code = fs.readFileSync('src/pages/Checkout.tsx', 'utf8');
 
-const target1 = `  const handleConfirmPayment = async () => {
-    setIsProcessing(true);
-    
-    if (isTrial) {
-      setProcessingStep("Mengaktifkan akses Free Trial 24 Jam...");
-      setTimeout(() => {
-        setProcessingStep("Menyiapkan dashboard akun Anda...");
-        setTimeout(() => {
-          activateUserPlan('free_trial', 'Free Trial (Rp 0)', 0, invoiceId);
-          setIsProcessing(false);
-          setIsSuccess(true);
-        }, 600);
-      }, 500);
-      return;
+const calculations = `  const selectedPlan = SUBSCRIPTION_PLANS.find(p => p.id === selectedPlanId) || SUBSCRIPTION_PLANS[3];
+  const isTrial = selectedPlan.id === 'free_trial';
+
+  // Pricing calculations
+  const originalPrice = selectedPlan.originalPrice || selectedPlan.price;
+  const baseDiscount = selectedPlan.originalPrice ? selectedPlan.originalPrice - selectedPlan.price : 0;
+  
+  let extraVoucherDiscount = 0;
+  if (appliedVoucher && selectedPlan.price > 0) {
+    if (appliedVoucher.type === 'percent') {
+      extraVoucherDiscount = Math.round((selectedPlan.price * appliedVoucher.discount) / 100);
+    } else {
+      extraVoucherDiscount = Math.min(appliedVoucher.discount, selectedPlan.price);
     }
+  }
 
-    // Strict 4-Step Paid Flow: Pilih Paket -> Bayar Sesuai Paket -> Bayar -> Jika sudah Lunas Baru Paket Terpilih Aktif Otomatis
-    setProcessingStep("Menghubungkan ke Duitku Gateway & memverifikasi status pembayaran...");
+  // Prorated discount calculation for upgrades
+  let proratedDiscount = 0;
+  if (isRenewMode && userProfile.subscription && userProfile.subscription.status === 'active' && userProfile.subscription.planId !== 'free_trial' && selectedPlan.price > 0) {
+    const expiresAt = new Date(userProfile.subscription.expiresAt).getTime();
+    const now = Date.now();
+    const remainingMs = expiresAt - now;
     
-    try {
-      const currentOrderId = duitkuInvoice?.merchantOrderId || invoiceId;
-      await fetch('/api/payment/duitku/simulate-sandbox-pay', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ merchantOrderId: currentOrderId })
-      });
-
-      setProcessingStep("Verifikasi MD5 Signature IPN Duitku berhasil (Status: LUNAS)...");
-      
-      setTimeout(() => {
-        setProcessingStep("Pelunasan Duitku terverifikasi LUNAS! Mengaktifkan paket terpilih secara otomatis...");
-        setTimeout(() => {
-          let methodLabel = duitkuInvoice?.paymentMethodName || "Duitku Payment Gateway";
-          if (paymentMethod === 'qris') {
-            methodLabel = "Duitku QRIS Instan";
-          } else if (paymentMethod?.startsWith('va_')) {
-            methodLabel = \`Duitku Virtual Account \${paymentMethod.replace('va_', '').toUpperCase()}\`;
-          } else if (paymentMethod === 'ewallet') {
-            methodLabel = \`Duitku E-Wallet (\${ewalletProvider.toUpperCase()})\`;
-          }
-          activateUserPlan(selectedPlan.id, methodLabel, finalTotal, currentOrderId);
-          setIsProcessing(false);
-          setIsSuccess(true);
-        }, 600);
-      }, 600);
-    } catch (err) {
-      console.error('Error confirming payment:', err);
-      setIsProcessing(false);
-    }
-  };`;
-
-const replacement1 = `  const handleConfirmPayment = async () => {
-    setIsProcessing(true);
-    
-    if (isTrial) {
-      setProcessingStep("Mengaktifkan akses Free Trial 24 Jam...");
-      setTimeout(() => {
-        setProcessingStep("Menyiapkan dashboard akun Anda...");
-        setTimeout(() => {
-          activateUserPlan('free_trial', 'Free Trial (Rp 0)', 0, invoiceId);
-          setIsProcessing(false);
-          setIsSuccess(true);
-        }, 600);
-      }, 500);
-      return;
-    }
-
-    setProcessingStep("Menghubungkan ke Duitku Gateway & memverifikasi status pembayaran...");
-    
-    try {
-      const currentOrderId = duitkuInvoice?.merchantOrderId || invoiceId;
-      const res = await fetch(\`/api/payment/duitku/check-status/\${currentOrderId}\`);
-      const data = await res.json();
-      
-      if (data.success && data.isPaid) {
-        setProcessingStep("Pelunasan terverifikasi! Mengaktifkan paket secara otomatis...");
-        setTimeout(() => {
-          let methodLabel = duitkuInvoice?.paymentMethodName || "Duitku Payment Gateway";
-          if (paymentMethod === 'qris') {
-            methodLabel = "Duitku QRIS Instan";
-          } else if (paymentMethod?.startsWith('va_')) {
-            methodLabel = \`Duitku Virtual Account \${paymentMethod.replace('va_', '').toUpperCase()}\`;
-          } else if (paymentMethod === 'ewallet') {
-            methodLabel = \`Duitku E-Wallet (\${ewalletProvider.toUpperCase()})\`;
-          }
-          activateUserPlan(selectedPlan.id, methodLabel, finalTotal, currentOrderId);
-          setIsProcessing(false);
-          setIsSuccess(true);
-        }, 600);
-      } else {
-        setIsProcessing(false);
-        alert("Pembayaran belum diterima. Jika Anda sudah membayar, harap tunggu beberapa saat dan coba lagi.");
+    if (remainingMs > 0) {
+      const remainingDays = Math.ceil(remainingMs / (1000 * 60 * 60 * 24));
+      const oldPlan = SUBSCRIPTION_PLANS.find(p => p.id === userProfile.subscription.planId);
+      if (oldPlan && oldPlan.durationDays) {
+         const dailyRate = oldPlan.price / oldPlan.durationDays;
+         proratedDiscount = Math.floor(dailyRate * remainingDays);
+         
+         // Cap the prorated discount to max 80% of new plan price so they still pay something for upgrade
+         if (proratedDiscount > selectedPlan.price * 0.8) {
+             proratedDiscount = Math.floor(selectedPlan.price * 0.8);
+         }
       }
-    } catch (err) {
-      setIsProcessing(false);
-      alert("Terjadi kesalahan saat mengecek status pembayaran.");
     }
-  };`;
+  }
 
-content = content.replace(target1, replacement1);
-fs.writeFileSync('src/pages/Checkout.tsx', content);
+  const finalTotal = Math.max(0, selectedPlan.price - extraVoucherDiscount - proratedDiscount);
+`;
+
+// Remove the calculations from their original place
+code = code.replace(calculations, '');
+
+// Insert them before duitkuMethods
+const insertTarget = "  const [duitkuMethods, setDuitkuMethods] = useState<any[]>([]);";
+code = code.replace(insertTarget, calculations + "\n" + insertTarget);
+
+fs.writeFileSync('src/pages/Checkout.tsx', code);
+console.log('Patched Checkout.tsx');
