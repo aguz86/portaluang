@@ -797,15 +797,13 @@ async function startServer() {
         [usageKey, JSON.stringify(usageData)]
       );
 
-      const ai = getGeminiClient();
-
-      if (!ai) {
+      const openRouterApiKey = process.env.OPENROUTER_API_KEY || process.env.GEMINI_API_KEY;
+      if (!openRouterApiKey) {
         return res.json({
           success: true,
           response: generateSmartFallback(mode, payload, userPrompt)
         });
       }
-
       // Fetch dynamic AI customization from global_settings
       let currentAiName = 'Portal Uang Advisor';
       let currentAiRole = 'AI Wealth Strateist';
@@ -867,21 +865,63 @@ Berikan panduan pelunasan langkah demi langkah yang jelas dengan simulasi matema
         prompt = `Pertanyaan pengguna: ${userPrompt}\n\nKonteks gambaran umum keuangan: ${JSON.stringify(payload || {}, null, 2)}`;
       }
 
-      const response = await ai.models.generateContent({
-        model: 'gemini-3.6-flash',
-        contents: prompt,
-        config: {
-          systemInstruction,
-          temperature: 0.7,
+      // 4. Tambahkan cache di backend sebelum panggil OpenRouter (Supabase/PostgreSQL)
+      const cacheString = systemInstruction + prompt;
+      const cacheHash = crypto.createHash('sha256').update(cacheString).digest('hex');
+      const cacheKey = `ai_cache_${cacheHash}`;
+
+      try {
+        const cacheRes = await pool.query('SELECT data FROM app_state WHERE id = $1', [cacheKey]);
+        if (cacheRes.rows.length > 0) {
+          const cachedOutput = cacheRes.rows[0].data.response;
+          return res.json({ success: true, response: cachedOutput });
+        }
+      } catch (err) {
+        console.error('Cache read error', err);
+      }
+
+      // 1. Buat Custom Endpoint ke OpenRouter
+      // 3. Di backend, selalu kirim system message di setiap request
+      const orRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${openRouterApiKey}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': 'https://portaluang.id',
+          'X-Title': 'Portal Uang',
         },
+        body: JSON.stringify({
+          model: process.env.OPENROUTER_MODEL || 'deepseek/deepseek-chat',
+          messages: [
+            { role: 'system', content: systemInstruction },
+            { role: 'user', content: prompt }
+          ],
+          temperature: 0.7
+        })
       });
 
-      const textOutput = response.text || 'No response generated.';
+      if (!orRes.ok) {
+        throw new Error(`OpenRouter API Error: ${orRes.statusText}`);
+      }
+
+      const orData = await orRes.json();
+      const textOutput = orData.choices?.[0]?.message?.content || 'No response generated.';
+
+      // Save response to cache
+      try {
+        await pool.query(
+          'INSERT INTO app_state (id, data, updated_at) VALUES ($1, $2, NOW()) ON CONFLICT (id) DO UPDATE SET data = $2, updated_at = NOW()',
+          [cacheKey, JSON.stringify({ response: textOutput })]
+        );
+      } catch (err) {
+        console.error('Cache write error', err);
+      }
+
       res.json({ success: true, response: textOutput });
     } catch (err: any) {
-      console.error('Gemini API Error:', err);
+      console.error('OpenRouter API Error:', err);
       
-      // HYBRID FALLBACK: If Gemini API fails (quota limit 429, timeout, or 503)
+      // HYBRID FALLBACK: If AI API fails
       // we silently switch to the smart algorithmic engine so the user still gets a response.
       return res.json({
         success: true,
@@ -1052,6 +1092,50 @@ Berikan panduan pelunasan langkah demi langkah yang jelas dengan simulasi matema
     } catch (err: any) {
       console.error('Error fetching Duitku config status:', err);
       res.status(500).json({ success: false, error: 'Failed to retrieve gateway status' });
+    }
+  });
+
+  // Get Available Payment Methods directly from Duitku (Dynamic Sync)
+  app.get('/api/payment/duitku/methods', async (req, res) => {
+    try {
+      const config = await getDuitkuConfig(pool);
+      const amount = req.query.amount || '10000';
+      
+      const d = new Date();
+      const pad = (n: number) => n < 10 ? '0' + n : n;
+      const datetime = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+      
+      const raw = `${config.merchantCode}${amount}${datetime}${config.apiKey}`;
+      const signature = crypto.createHash('sha256').update(raw).digest('hex');
+      
+      const payload = {
+        merchantcode: config.merchantCode,
+        amount: amount,
+        datetime: datetime,
+        signature: signature
+      };
+      
+      const baseUrl = config.env === 'production' 
+          ? 'https://passport.duitku.com/webapi/api/merchant' 
+          : 'https://sandbox.duitku.com/webapi/api/merchant';
+
+      const fetch = (await import('node-fetch')).default || globalThis.fetch;
+      const response = await fetch(`${baseUrl}/paymentmethod/getpaymentmethod`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      
+      const data = await response.json();
+      
+      if (data.paymentFee && Array.isArray(data.paymentFee)) {
+        return res.json({ success: true, methods: data.paymentFee });
+      }
+      
+      res.json({ success: true, methods: null, message: data.Message || 'Failed to fetch' });
+    } catch (err: any) {
+      console.error('Error fetching payment methods:', err);
+      res.status(500).json({ success: false, error: err.message });
     }
   });
 

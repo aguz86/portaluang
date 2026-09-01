@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { Account, BudgetCategory, Transaction } from '../types';
 import { Sparkles, X, Send, Bot, FileText, Flame, AlertCircle } from 'lucide-react';
 import { useGlobalSettings } from '../hooks/useGlobalSettings';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface AiAdvisorModalProps {
   isOpen: boolean;
@@ -60,6 +62,7 @@ export const AiAdvisorModal: React.FC<AiAdvisorModalProps> = ({
       });
 
       const data = await res.json();
+
       if (res.status === 429 || !data.success) {
         setErrorMsg(data.error || 'Failed to fetch AI insights.');
       } else {
@@ -82,11 +85,10 @@ export const AiAdvisorModal: React.FC<AiAdvisorModalProps> = ({
               <Sparkles className="w-5 h-5 animate-pulse" />
             </div>
             <div>
-              <h3 className="font-bold text-stone-100 text-base">{aiName} {aiRoleTitle}</h3>
-              <p className="text-xs text-stone-400">Server-side Gemini 3.6 Flash Intelligence</p>
+              <h3 className="font-bold text-stone-100 text-base">{aiName} - {aiRoleTitle}</h3>
+              <p className="text-xs text-stone-400">DeepSeek Intelligence Engine</p>
             </div>
           </div>
-
           <button
             onClick={onClose}
             className="p-1.5 text-stone-400 hover:text-stone-200 hover:bg-stone-800 rounded-lg transition-colors"
@@ -108,9 +110,8 @@ export const AiAdvisorModal: React.FC<AiAdvisorModalProps> = ({
               }`}
             >
               <Bot className="w-4 h-4" />
-              <span>Budget Audit</span>
+              <span>Audit Anggaran</span>
             </button>
-
             <button
               onClick={() => setMode('debt_strategy')}
               className={`p-2.5 rounded-xl border text-xs font-semibold flex flex-col items-center gap-1 transition-all ${
@@ -120,9 +121,8 @@ export const AiAdvisorModal: React.FC<AiAdvisorModalProps> = ({
               }`}
             >
               <Flame className="w-4 h-4" />
-              <span>Debt Strategy</span>
+              <span>Strategi Hutang</span>
             </button>
-
             <button
               onClick={() => setMode('parse_statement')}
               className={`p-2.5 rounded-xl border text-xs font-semibold flex flex-col items-center gap-1 transition-all ${
@@ -132,9 +132,8 @@ export const AiAdvisorModal: React.FC<AiAdvisorModalProps> = ({
               }`}
             >
               <FileText className="w-4 h-4" />
-              <span>Statement Parser</span>
+              <span>Ekstrak Struk</span>
             </button>
-
             <button
               onClick={() => setMode('custom')}
               className={`p-2.5 rounded-xl border text-xs font-semibold flex flex-col items-center gap-1 transition-all ${
@@ -144,7 +143,7 @@ export const AiAdvisorModal: React.FC<AiAdvisorModalProps> = ({
               }`}
             >
               <Sparkles className="w-4 h-4" />
-              <span>Custom Prompt</span>
+              <span>Konsultasi Bebas</span>
             </button>
           </div>
 
@@ -152,15 +151,15 @@ export const AiAdvisorModal: React.FC<AiAdvisorModalProps> = ({
           {(mode === 'parse_statement' || mode === 'custom') && (
             <div>
               <label className="text-xs text-stone-400 block mb-1">
-                {mode === 'parse_statement' ? 'Paste Bank Statement or Receipt text:' : `Ask ${aiName} a financial question:`}
+                {mode === 'parse_statement' ? 'Tempelkan teks mutasi bank atau struk belanja:' : `Tanyakan masalah keuangan Anda kepada ${aiName}:`}
               </label>
               <textarea
                 value={userPrompt}
                 onChange={(e) => setUserPrompt(e.target.value)}
                 placeholder={
                   mode === 'parse_statement'
-                    ? "e.g. 2026-07-24 Trader Joe's $42.10 groceries\n2026-07-25 Shell Oil $35.00 gas"
-                    : "e.g. How much should I allocate to emergency savings if my monthly rent is $1,850?"
+                    ? "Misal: 2026-07-24 Indomaret Rp 42.100\n2026-07-25 Beli Bensin Rp 35.000"
+                    : "Misal: Berapa idealnya dana darurat untuk saya yang masih lajang dengan gaji 5 juta?"
                 }
                 rows={3}
                 className="w-full bg-stone-950 border border-stone-800 rounded-xl p-3 text-xs text-stone-200 focus:outline-none focus:border-amber-500 font-mono"
@@ -177,12 +176,12 @@ export const AiAdvisorModal: React.FC<AiAdvisorModalProps> = ({
             {loading ? (
               <>
                 <Sparkles className="w-4 h-4 animate-spin" />
-                <span>Consulting {aiName}...</span>
+                <span>Menganalisis...</span>
               </>
             ) : (
               <>
                 <Send className="w-4 h-4" />
-                <span>Run {mode.replace('_', ' ').toUpperCase()}</span>
+                <span>Jalankan {mode.replace('_', ' ').toUpperCase()}</span>
               </>
             )}
           </button>
@@ -199,8 +198,10 @@ export const AiAdvisorModal: React.FC<AiAdvisorModalProps> = ({
           {aiResult && (
             <div className="bg-stone-950 border border-stone-800 rounded-xl p-4 space-y-2">
               <span className="text-[10px] uppercase font-bold text-amber-400 block">AI Strategic Feedback</span>
-              <div className="text-xs text-stone-200 whitespace-pre-wrap leading-relaxed font-sans">
-                {aiResult}
+              <div className="text-sm text-stone-200 leading-relaxed font-sans prose prose-invert prose-amber max-w-none prose-p:leading-relaxed prose-pre:bg-stone-900 prose-pre:border prose-pre:border-stone-800 prose-td:border-stone-700 prose-th:border-stone-700 prose-th:bg-stone-800 prose-table:border-stone-700">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {aiResult}
+                </ReactMarkdown>
               </div>
             </div>
           )}

@@ -2,7 +2,7 @@ import { ExportDateRangeModal } from "./ExportDateRangeModal";
 import { DataManagementModal } from "./DataManagementModal";
 import { PinModal } from "./PinModal";
 import { encryptData, decryptData } from "../utils/crypto";
-import { getDriveToken, uploadToDrive } from "../utils/googleDrive";
+import { getDriveToken, uploadToDrive, listBackupFiles, downloadFromDrive } from "../utils/googleDrive";
 import React, { useState, useRef } from 'react';
 import { BudgetCategory, BudgetGroup, Transaction, formatRupiah } from '../types';
 import { formatRpInput, parseRpInput , formatDateToDDMMYYYY_HHMM} from '../utils/format';
@@ -52,14 +52,14 @@ export const ZeroBasedBudgetView: React.FC<ZeroBasedBudgetViewProps> = ({
   const [isDataModalOpen, setIsDataModalOpen] = useState(false);
   const [isPinModalOpen, setIsPinModalOpen] = useState(false);
   const [pinMode, setPinMode] = useState<'setup' | 'verify'>('setup');
-  const [pendingAction, setPendingAction] = useState<'print_pdf' | 'backup_local' | 'backup_drive' | 'import_local' | null>(null);
+  const [pendingAction, setPendingAction] = useState<'print_pdf' | 'backup_local' | 'backup_drive' | 'restore_drive' | 'import_local' | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [copied, setCopied] = useState(false);
   const [exportModalConfig, setExportModalConfig] = useState<{isOpen: boolean, type: "pdf" | "csv"}>({ isOpen: false, type: "csv" });
   const [printDateRange, setPrintDateRange] = useState<{start: string, end: string} | null>(null);
 
-  const handleDataAction = (action: 'print_pdf' | 'backup_local' | 'backup_drive' | 'import_local') => {
+  const handleDataAction = (action: 'print_pdf' | 'backup_local' | 'backup_drive' | 'restore_drive' | 'import_local') => {
     setIsDataModalOpen(false);
     if (action === 'print_pdf') {
       setExportModalConfig({ isOpen: true, type: "pdf" });
@@ -69,7 +69,7 @@ export const ZeroBasedBudgetView: React.FC<ZeroBasedBudgetViewProps> = ({
     setPendingAction(action);
     const hasPin = !!localStorage.getItem('portal_uang_pin_hash');
     
-    if (action === 'import_local' && !hasPin) {
+    if ((action === 'import_local' || action === 'restore_drive') && !hasPin) {
       alert("Anda belum memiliki PIN. Buat PIN terlebih dahulu dengan melakukan backup lokal atau ke Google Drive.");
       return;
     }
@@ -109,6 +109,35 @@ export const ZeroBasedBudgetView: React.FC<ZeroBasedBudgetViewProps> = ({
       } catch (err: any) {
         console.error(err);
         alert('Gagal backup ke Google Drive. Pastikan Anda memberikan izin akses.');
+      }
+    } else if (pendingAction === 'restore_drive') {
+      try {
+        const token = await getDriveToken();
+        const files = await listBackupFiles(token);
+        if (files.length === 0) {
+          alert('Tidak ditemukan file backup "PortalUang_Backup" di Google Drive Anda.');
+          return;
+        }
+        
+        // Ambil file backup terbaru (indeks 0 karena desc)
+        const latestFile = files[0];
+        if (!confirm(`Ditemukan backup terbaru: ${latestFile.name}. Lanjutkan restore?`)) {
+           return;
+        }
+        
+        const fileContent = await downloadFromDrive(token, latestFile.id);
+        const decrypted = decryptData(fileContent, pin);
+        
+        if (decrypted && decrypted.budgetCategories && decrypted.transactions) {
+          localStorage.setItem('portal_uang_budget_categories', JSON.stringify(decrypted.budgetCategories));
+          localStorage.setItem('portal_uang_transactions', JSON.stringify(decrypted.transactions));
+          window.location.reload();
+        } else {
+          alert('PIN salah atau format file rusak.');
+        }
+      } catch (err: any) {
+        console.error(err);
+        alert('Gagal melakukan restore dari Google Drive.');
       }
     } else if (pendingAction === 'import_local') {
       // Store pin temporarily to decrypt after file selection

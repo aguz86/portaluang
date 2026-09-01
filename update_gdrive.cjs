@@ -1,3 +1,6 @@
+const fs = require('fs');
+
+const code = `
 const FALLBACK_CLIENT_ID = "2650368982-2pvrjvr293snin1fa6150024rehp4eet.apps.googleusercontent.com";
 const CLIENT_ID = import.meta.env.VITE_GDRIVE_CLIENT_ID || FALLBACK_CLIENT_ID;
 const SCOPES = "https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.readonly";
@@ -33,7 +36,7 @@ export const uploadToDrive = async (token: string, fileData: string, fileName: s
   const response = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${token}`,
+      Authorization: \`Bearer \${token}\`,
     },
     body: formData,
   });
@@ -46,9 +49,9 @@ export const uploadToDrive = async (token: string, fileData: string, fileName: s
 export const listBackupFiles = async (token: string) => {
   // We search for files containing "PortalUang_Backup" in the name
   const query = encodeURIComponent("name contains 'PortalUang_Backup' and trashed = false");
-  const response = await fetch(`https://www.googleapis.com/drive/v3/files?q=${query}&orderBy=createdTime desc`, {
+  const response = await fetch(\`https://www.googleapis.com/drive/v3/files?q=\${query}&orderBy=createdTime desc\`, {
     headers: {
-      Authorization: `Bearer ${token}`
+      Authorization: \`Bearer \${token}\`
     }
   });
   if (!response.ok) {
@@ -59,9 +62,9 @@ export const listBackupFiles = async (token: string) => {
 };
 
 export const downloadFromDrive = async (token: string, fileId: string) => {
-  const response = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
+  const response = await fetch(\`https://www.googleapis.com/drive/v3/files/\${fileId}?alt=media\`, {
     headers: {
-      Authorization: `Bearer ${token}`
+      Authorization: \`Bearer \${token}\`
     }
   });
   if (!response.ok) {
@@ -69,3 +72,6 @@ export const downloadFromDrive = async (token: string, fileId: string) => {
   }
   return response.text();
 };
+`;
+
+fs.writeFileSync('src/utils/googleDrive.ts', code.trim());

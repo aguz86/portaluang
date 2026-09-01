@@ -88,6 +88,27 @@ export default function Checkout() {
     paymentMethodName?: string;
   } | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string>("");
+
+  const [duitkuMethods, setDuitkuMethods] = useState<any[]>([]);
+  const [methodsLoading, setMethodsLoading] = useState(true);
+
+  // Fetch available methods on mount
+  useEffect(() => {
+    let isMounted = true;
+    fetch('/api/payment/duitku/methods?amount=' + (finalTotal || 10000))
+      .then(res => res.json())
+      .then(data => {
+        if (isMounted && data.success && data.methods) {
+          setDuitkuMethods(data.methods);
+        }
+      })
+      .catch(console.error)
+      .finally(() => {
+        if (isMounted) setMethodsLoading(false);
+      });
+    return () => { isMounted = false; };
+  }, [finalTotal]);
+
   const [invoiceLoading, setInvoiceLoading] = useState(false);
 
   // Generate fixed invoice ID fallback
@@ -153,7 +174,7 @@ export default function Checkout() {
             planId: selectedPlan.id,
             planName: selectedPlan.name,
             amount: finalTotal,
-            paymentMethod: paymentMethod,
+            paymentMethod: paymentMethod === 'ewallet' ? `ewallet_${ewalletProvider}` : paymentMethod,
             email: userProfile.email || 'user@portaluang.id',
             customerName: userProfile.name || 'Pengguna Portal Uang',
             phoneNumber: ewalletPhone || '08123456789'
@@ -310,11 +331,21 @@ export default function Checkout() {
   };
 
   // Virtual Account Numbers fallback
-  const vaNumbers = {
+  const vaNumbers: Record<string, { bank: string; number: string }> = {
     va_bca: { bank: 'BCA', number: '82710812' + invoiceId.replace(/\D/g, '').slice(-6) },
     va_mandiri: { bank: 'Bank Mandiri', number: '88708' + invoiceId.replace(/\D/g, '').slice(-8) },
     va_bri: { bank: 'BRI (BRIVA)', number: '12800' + invoiceId.replace(/\D/g, '').slice(-8) },
-    va_bni: { bank: 'BNI', number: '98800' + invoiceId.replace(/\D/g, '').slice(-8) }
+    va_bni: { bank: 'BNI', number: '98800' + invoiceId.replace(/\D/g, '').slice(-8) },
+    va_cimb: { bank: 'CIMB Niaga', number: '1149' + invoiceId.replace(/\D/g, '').slice(-8) },
+    va_permata: { bank: 'Permata', number: '8856' + invoiceId.replace(/\D/g, '').slice(-8) },
+    va_atmbersama: { bank: 'ATM Bersama', number: '014' + invoiceId.replace(/\D/g, '').slice(-8) }
+  };
+  
+  // Dynamic fallback for any unknown VA
+  const getVaInfo = (key: string) => {
+    if (vaNumbers[key]) return vaNumbers[key];
+    const name = key.replace('va_', '').toUpperCase();
+    return { bank: name, number: '8880' + invoiceId.replace(/\D/g, '').slice(-8) };
   };
 
   const calculatedExpiry = calculateSubscriptionExpiration(selectedPlan.id);
@@ -748,11 +779,59 @@ export default function Checkout() {
                   </p>
                 </div>
 
-                {/* Method Tabs: 3 Clean Options (QRIS, VA Bank, E-Wallet) */}
+                
+  {/* Check active channels from Duitku if available */}
+  {(() => {
+    const hasDynamic = duitkuMethods && duitkuMethods.length > 0;
+    const hasQris = hasDynamic ? duitkuMethods.some(m => m.paymentMethod === 'NQ') : true;
+    const activeVA = hasDynamic 
+       ? duitkuMethods.filter(m => ['BC', 'M2', 'BR', 'B1', 'NC', 'VA', 'A1', 'I1', 'B8'].includes(m.paymentMethod)) 
+       : null;
+    const hasVA = hasDynamic ? activeVA.length > 0 : true;
+    
+    const activeEwallet = hasDynamic
+       ? duitkuMethods.filter(m => ['GP', 'SP', 'OV', 'DA', 'LA', 'SA'].includes(m.paymentMethod))
+       : null;
+    const hasEwallet = hasDynamic ? activeEwallet.length > 0 : true;
+
+    // Reset default selected tab if current tab is suddenly disabled by Duitku
+    // (This is a simplified approach, usually done in useEffect, but safe here if we just visually hide disabled tabs)
+
+    // Helper to map Duitku code to our VA keys
+    const getVaKey = (code) => {
+      switch(code) {
+        case 'BC': return 'va_bca';
+        case 'M2': return 'va_mandiri';
+        case 'BR': return 'va_bri';
+        case 'B1': return 'va_bni';
+        case 'NC': return 'va_cimb';
+        case 'VA': return 'va_permata';
+        default: return 'va_'+code.toLowerCase();
+      }
+    };
+    
+    const getEwalletKey = (code) => {
+      switch(code) {
+        case 'GP': return 'gopay';
+        case 'SP': return 'shopeepay';
+        case 'OV': return 'ovo';
+        case 'DA': return 'dana';
+        case 'LA': return 'linkaja';
+        case 'SA': return 'shopeepay'; // Sometimes code varies
+        default: return code.toLowerCase();
+      }
+    };
+
+    const renderedVaList = activeVA ? activeVA.map(m => getVaKey(m.paymentMethod)) : ['va_bca', 'va_mandiri', 'va_bri', 'va_bni'];
+    const renderedEwalletList = activeEwallet ? activeEwallet.map(m => getEwalletKey(m.paymentMethod)) : ['gopay', 'ovo', 'dana', 'shopeepay'];
+
+    return (
+      <>
+  
                 <div className="grid grid-cols-3 gap-2.5">
                   <button
                     type="button"
-                    onClick={() => setPaymentMethod('qris')}
+                    onClick={() => setPaymentMethod('qris')} style={{ display: hasQris ? 'flex' : 'none' }}
                     className={`p-3.5 rounded-2xl border text-center transition-all flex flex-col items-center justify-center gap-1.5 ${
                       paymentMethod === 'qris'
                         ? 'bg-amber-500/15 border-amber-500 text-amber-300 font-bold shadow-md ring-1 ring-amber-500/40'
@@ -766,7 +845,7 @@ export default function Checkout() {
 
                   <button
                     type="button"
-                    onClick={() => setPaymentMethod('va_bca')}
+                    onClick={() => setPaymentMethod(renderedVaList[0] || 'va_bca')} style={{ display: hasVA ? 'flex' : 'none' }}
                     className={`p-3.5 rounded-2xl border text-center transition-all flex flex-col items-center justify-center gap-1.5 ${
                       paymentMethod?.startsWith('va_')
                         ? 'bg-amber-500/15 border-amber-500 text-amber-300 font-bold shadow-md ring-1 ring-amber-500/40'
@@ -780,7 +859,7 @@ export default function Checkout() {
 
                   <button
                     type="button"
-                    onClick={() => setPaymentMethod('ewallet')}
+                    onClick={() => setPaymentMethod('ewallet')} style={{ display: hasEwallet ? 'flex' : 'none' }}
                     className={`p-3.5 rounded-2xl border text-center transition-all flex flex-col items-center justify-center gap-1.5 ${
                       paymentMethod === 'ewallet'
                         ? 'bg-amber-500/15 border-amber-500 text-amber-300 font-bold shadow-md ring-1 ring-amber-500/40'
@@ -850,7 +929,7 @@ export default function Checkout() {
                     </div>
 
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                      {(['va_bca', 'va_mandiri', 'va_bri', 'va_bni'] as const).map((key) => (
+                      {(renderedVaList as any[]).map((key) => (
                         <button
                           key={key}
                           type="button"
@@ -861,25 +940,25 @@ export default function Checkout() {
                               : 'bg-stone-900 border-stone-800 text-stone-400 hover:text-white'
                           }`}
                         >
-                          {vaNumbers[key].bank}
+                          {getVaInfo(key).bank}
                         </button>
                       ))}
                     </div>
 
                     {/* VA Box Display */}
-                    {paymentMethod in vaNumbers && (
+                    {paymentMethod?.startsWith("va_") && (
                       <div className="bg-stone-900 p-4 rounded-xl border border-stone-800 space-y-2">
                         <div className="text-xs text-stone-400 flex justify-between">
-                          <span>Nomor Virtual Account {vaNumbers[paymentMethod as keyof typeof vaNumbers].bank}:</span>
+                          <span>Nomor Virtual Account {getVaInfo(paymentMethod as string).bank}:</span>
                           <span className="text-emerald-400 text-[10px] font-bold">Duitku Direct VA (24 Jam)</span>
                         </div>
                         <div className="flex items-center justify-between bg-stone-950 p-3 rounded-xl border border-stone-800">
                           <span className="font-mono text-lg font-bold text-amber-400 tracking-wider">
-                            {duitkuInvoice?.vaNumber || vaNumbers[paymentMethod as keyof typeof vaNumbers].number}
+                            {duitkuInvoice?.vaNumber || getVaInfo(paymentMethod as string).number}
                           </span>
                           <button
                             type="button"
-                            onClick={() => copyToClipboard(duitkuInvoice?.vaNumber || vaNumbers[paymentMethod as keyof typeof vaNumbers].number, 'va')}
+                            onClick={() => copyToClipboard(duitkuInvoice?.vaNumber || getVaInfo(paymentMethod as string).number, 'va')}
                             className="px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors"
                           >
                             {copiedField === 'va' ? (
@@ -911,7 +990,7 @@ export default function Checkout() {
                     </div>
                     
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                      {(['gopay', 'ovo', 'dana', 'shopeepay'] as const).map((prov) => (
+                      {(renderedEwalletList as any[]).map((prov) => (
                         <button
                           key={prov}
                           type="button"
@@ -953,7 +1032,11 @@ export default function Checkout() {
                   </div>
                 )}
 
-                {/* Action Confirmation Button */}
+                
+      </>
+    );
+  })()}
+  {/* Action Confirmation Button */}
                 <button
                   onClick={handleConfirmPayment}
                   disabled={isProcessing}
