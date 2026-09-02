@@ -97,7 +97,7 @@ const BillingView = () => (
 const BillingCheckoutView = () => (
   <div className="p-8 bg-stone-900 border border-amber-500/50 rounded-2xl flex flex-col items-center justify-center text-center max-w-md mx-auto mt-12 shadow-2xl shadow-amber-500/10">
     <h2 className="text-2xl font-bold text-white mb-2">Checkout Portal Uang Pro</h2>
-    <p className="text-stone-400 mb-8">Anda akan diarahkan ke payment gateway (Duitku).</p>
+    <p className="text-stone-400 mb-8">Anda akan diarahkan ke sistem pembayaran.</p>
     <div className="bg-stone-950 p-4 rounded-xl mb-6 w-full text-left border border-stone-800">
       <div className="flex justify-between text-stone-300 text-sm mb-2">
         <span>Portal Uang Pro (1 Bulan)</span>

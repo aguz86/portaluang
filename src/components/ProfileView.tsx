@@ -111,7 +111,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ showToast }) => {
           onClick={() => setActiveModal('upgrade')}
           className="inline-flex items-center gap-2 px-4 py-2.5 bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold rounded-xl shadow-lg shadow-amber-500/20 text-sm transition-all"
         >
-          <Zap className="w-4 h-4" /> Ubah / Perpanjang Paket
+          <Zap className="w-4 h-4" /> Perpanjang Paket
         </button>
       </div>
 

@@ -59,7 +59,7 @@ export default function Checkout() {
     : (validPlanIds.includes(userProfile.subscription.planId) && (userProfile.subscription.planId !== 'free_trial' || isTrialAllowed) ? userProfile.subscription.planId : 'annual');
 
   const [selectedPlanId, setSelectedPlanId] = useState<SubscriptionPlanId>(initialPlanId);
-  const [paymentMethod, setPaymentMethod] = useState<'qris' | 'va_bca' | 'va_mandiri' | 'va_bri' | 'va_bni' | 'ewallet'>('qris');
+  const [paymentMethod, setPaymentMethod] = useState<string>('SP');
   const [ewalletPhone, setEwalletPhone] = useState("");
   const [ewalletProvider, setEwalletProvider] = useState<'gopay' | 'ovo' | 'dana' | 'shopeepay'>('gopay');
   
@@ -178,7 +178,7 @@ export default function Checkout() {
             planId: selectedPlan.id,
             planName: selectedPlan.name,
             amount: finalTotal,
-            paymentMethod: paymentMethod === 'ewallet' ? `ewallet_${ewalletProvider}` : paymentMethod,
+            paymentMethod: paymentMethod,
             email: userProfile.email || 'user@portaluang.id',
             customerName: userProfile.name || 'Pengguna Portal Uang',
             phoneNumber: ewalletPhone || '08123456789'
@@ -218,7 +218,7 @@ export default function Checkout() {
 
   // Fallback QR code generator if live qrString not present yet
   useEffect(() => {
-    if (paymentMethod === 'qris' && !qrDataUrl) {
+    if (paymentMethod === 'NQ' && !qrDataUrl) {
       const defaultQrPayload = `00020101021226590014ID.LINKAJA.WWW01189360091800000000000215ID${invoiceId}520458125303360540${finalTotal}.005802ID5910AURALEDGER6007JAKARTA61051219062070703A016304`;
       QRCode.toDataURL(defaultQrPayload, { width: 280, margin: 2 })
         .then(url => setQrDataUrl(url))
@@ -302,7 +302,7 @@ export default function Checkout() {
       return;
     }
 
-    setProcessingStep("Mengecek status pembayaran ke Duitku Gateway...");
+    setProcessingStep("Mengecek status pembayaran ke sistem...");
     
     try {
       const currentOrderId = duitkuInvoice?.merchantOrderId || invoiceId;
@@ -312,13 +312,13 @@ export default function Checkout() {
       if (data.success && data.isPaid) {
         setProcessingStep("Pelunasan terverifikasi! Mengaktifkan paket secara otomatis...");
         setTimeout(() => {
-          let methodLabel = duitkuInvoice?.paymentMethodName || "Duitku Payment Gateway";
+          let methodLabel = duitkuInvoice?.paymentMethodName || duitkuMethods.find(m => m.paymentMethod === paymentMethod)?.paymentName || "Payment Gateway";
           if (paymentMethod === 'qris') {
-            methodLabel = "Duitku QRIS Instan";
+            methodLabel = "QRIS Instan";
           } else if (paymentMethod?.startsWith('va_')) {
-            methodLabel = `Duitku Virtual Account ${paymentMethod.replace('va_', '').toUpperCase()}`;
+            methodLabel = `Virtual Account ${paymentMethod.replace('va_', '').toUpperCase()}`;
           } else if (paymentMethod === 'ewallet') {
-            methodLabel = `Duitku E-Wallet (${ewalletProvider.toUpperCase()})`;
+            methodLabel = `E-Wallet (${ewalletProvider.toUpperCase()})`;
           }
           activateUserPlan(selectedPlan.id, methodLabel, finalTotal, currentOrderId);
           setIsProcessing(false);
@@ -832,202 +832,105 @@ export default function Checkout() {
     return (
       <>
   
-                <div className="grid grid-cols-3 gap-2.5">
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod('qris')} style={{ display: hasQris ? 'flex' : 'none' }}
-                    className={`p-3.5 rounded-2xl border text-center transition-all flex flex-col items-center justify-center gap-1.5 ${
-                      paymentMethod === 'qris'
-                        ? 'bg-amber-500/15 border-amber-500 text-amber-300 font-bold shadow-md ring-1 ring-amber-500/40'
-                        : 'bg-stone-950 border-stone-800 text-stone-400 hover:border-stone-700 hover:text-stone-200'
-                    }`}
-                  >
-                    <QrCode className="w-5 h-5 text-amber-400" />
-                    <span className="text-xs font-bold">QRIS Instan</span>
-                    <span className="text-[10px] text-emerald-400 font-medium">Semua App / Bank</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod((renderedVaList[0] as any) || 'va_bca')} style={{ display: hasVA ? 'flex' : 'none' }}
-                    className={`p-3.5 rounded-2xl border text-center transition-all flex flex-col items-center justify-center gap-1.5 ${
-                      paymentMethod?.startsWith('va_')
-                        ? 'bg-amber-500/15 border-amber-500 text-amber-300 font-bold shadow-md ring-1 ring-amber-500/40'
-                        : 'bg-stone-950 border-stone-800 text-stone-400 hover:border-stone-700 hover:text-stone-200'
-                    }`}
-                  >
-                    <Building2 className="w-5 h-5 text-amber-400" />
-                    <span className="text-xs font-bold">Virtual Account</span>
-                    <span className="text-[10px] text-stone-400 font-medium">BCA, Mandiri, BRI, BNI</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod('ewallet')} style={{ display: hasEwallet ? 'flex' : 'none' }}
-                    className={`p-3.5 rounded-2xl border text-center transition-all flex flex-col items-center justify-center gap-1.5 ${
-                      paymentMethod === 'ewallet'
-                        ? 'bg-amber-500/15 border-amber-500 text-amber-300 font-bold shadow-md ring-1 ring-amber-500/40'
-                        : 'bg-stone-950 border-stone-800 text-stone-400 hover:border-stone-700 hover:text-stone-200'
-                    }`}
-                  >
-                    <Wallet className="w-5 h-5 text-amber-400" />
-                    <span className="text-xs font-bold">E-Wallet</span>
-                    <span className="text-[10px] text-stone-400 font-medium">GoPay, OVO, DANA</span>
-                  </button>
-                </div>
-
-                {/* TAB 1: QRIS DETAILS */}
-                {paymentMethod === 'qris' && (
-                  <div className="bg-stone-950 border border-stone-800 rounded-2xl p-6 text-center space-y-4 animate-fadeIn">
-                    <div className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-400 bg-emerald-950/40 px-3 py-1 rounded-full border border-emerald-800/40">
-                      <Zap className="w-3.5 h-3.5" /> Duitku QRIS Realtime Instant Settlement &bull; Berlaku 24 Jam
-                    </div>
-
-                    {/* QR Code Card */}
-                    <div className="bg-white p-4 rounded-2xl inline-block shadow-2xl max-w-[240px] mx-auto border border-stone-300">
-                      <div className="text-[10px] font-black text-slate-800 uppercase tracking-wider mb-2">
-                        QRIS Standar Pembayaran Nasional
-                      </div>
+                
+                
+                <div className="space-y-6">
+                  {duitkuMethods && duitkuMethods.length > 0 ? (
+                    (() => {
+                      const instantMethods = duitkuMethods.filter((m: any) => ['SP', 'OV', 'DA', 'LQ', 'NQ', 'GP', 'AQ'].includes(m.paymentMethod));
+                      const vaMethods = duitkuMethods.filter((m: any) => ['BC', 'M2', 'BR', 'B1', 'NC', 'VA', 'B4', 'I1', 'M1', 'BT', 'S1', 'MB'].includes(m.paymentMethod));
+                      const retailMethods = duitkuMethods.filter((m: any) => ['A1', 'AL', 'FT', 'IR'].includes(m.paymentMethod));
                       
-                      {qrDataUrl ? (
-                        <img 
-                          src={qrDataUrl} 
-                          alt="Duitku QRIS Code" 
-                          className="w-48 h-48 mx-auto rounded-lg object-contain"
-                          referrerPolicy="no-referrer"
-                        />
-                      ) : (
-                        <div className="w-48 h-48 flex items-center justify-center bg-stone-100 rounded-lg">
-                          <Loader2 className="w-8 h-8 text-stone-500 animate-spin" />
-                        </div>
-                      )}
+                      return (
+                        <>
+                          {/* Instant Payment Section */}
+                          {instantMethods.length > 0 && (
+                            <div className="space-y-3">
+                              <div className="text-xs font-bold text-stone-400 uppercase tracking-wider flex items-center justify-between">
+                                <span>Instant Payment</span>
+                                <Zap className="w-3.5 h-3.5 text-emerald-400" />
+                              </div>
+                              <div className="grid grid-cols-2 gap-3">
+                                {instantMethods.map((m: any) => (
+                                  <button
+                                    key={m.paymentMethod}
+                                    type="button"
+                                    onClick={() => setPaymentMethod(m.paymentMethod)}
+                                    className={`p-3 rounded-2xl border transition-all flex items-center justify-center gap-2 ${
+                                      paymentMethod === m.paymentMethod
+                                        ? 'bg-emerald-500/10 border-emerald-500 text-emerald-300 ring-1 ring-emerald-500/40'
+                                        : 'bg-white border-stone-200 text-stone-800 hover:border-emerald-500 hover:shadow-sm'
+                                    }`}
+                                  >
+                                    <img src={m.paymentImage} alt={m.paymentName} className="h-6 object-contain" referrerPolicy="no-referrer" />
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
 
-                      <div className="text-[9px] font-bold text-slate-600 mt-2">
-                        NMID: ID102026889219 &bull; Duitku PG
-                      </div>
+                          {/* Virtual Account Section */}
+                          {vaMethods.length > 0 && (
+                            <div className="space-y-3">
+                              <div className="text-xs font-bold text-stone-400 uppercase tracking-wider flex items-center justify-between">
+                                <span>Virtual Account</span>
+                                <Building2 className="w-3.5 h-3.5 text-stone-500" />
+                              </div>
+                              <div className="grid grid-cols-2 gap-3">
+                                {vaMethods.map((m: any) => (
+                                  <button
+                                    key={m.paymentMethod}
+                                    type="button"
+                                    onClick={() => setPaymentMethod(m.paymentMethod)}
+                                    className={`p-3 rounded-2xl border transition-all flex items-center justify-center gap-2 ${
+                                      paymentMethod === m.paymentMethod
+                                        ? 'bg-emerald-500/10 border-emerald-500 text-emerald-300 ring-1 ring-emerald-500/40'
+                                        : 'bg-white border-stone-200 text-stone-800 hover:border-emerald-500 hover:shadow-sm'
+                                    }`}
+                                  >
+                                    <img src={m.paymentImage} alt={m.paymentName} className="h-6 object-contain" referrerPolicy="no-referrer" />
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Retail / Others Section */}
+                          {retailMethods.length > 0 && (
+                            <div className="space-y-3">
+                              <div className="text-xs font-bold text-stone-400 uppercase tracking-wider flex items-center justify-between">
+                                <span>Retail & Others</span>
+                                <Wallet className="w-3.5 h-3.5 text-stone-500" />
+                              </div>
+                              <div className="grid grid-cols-2 gap-3">
+                                {retailMethods.map((m: any) => (
+                                  <button
+                                    key={m.paymentMethod}
+                                    type="button"
+                                    onClick={() => setPaymentMethod(m.paymentMethod)}
+                                    className={`p-3 rounded-2xl border transition-all flex items-center justify-center gap-2 ${
+                                      paymentMethod === m.paymentMethod
+                                        ? 'bg-emerald-500/10 border-emerald-500 text-emerald-300 ring-1 ring-emerald-500/40'
+                                        : 'bg-white border-stone-200 text-stone-800 hover:border-emerald-500 hover:shadow-sm'
+                                    }`}
+                                  >
+                                    <img src={m.paymentImage} alt={m.paymentName} className="h-6 object-contain" referrerPolicy="no-referrer" />
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-10 bg-stone-900 border border-stone-800 rounded-2xl">
+                      <Loader2 className="w-8 h-8 text-stone-500 animate-spin mb-3" />
+                      <span className="text-xs text-stone-400">Memuat metode pembayaran...</span>
                     </div>
-
-                    <div className="text-xs text-stone-400 max-w-md mx-auto leading-relaxed">
-                      Scan QRIS resmi Duitku di atas menggunakan <strong className="text-stone-200">GoPay, OVO, DANA, BCA Mobile, Livin' Mandiri, BRImo, ShopeePay</strong>, atau m-Banking Anda.
-                    </div>
-
-                    <div className="flex items-center justify-center gap-2 text-xs text-stone-300 font-mono bg-stone-900 p-3 rounded-xl border border-stone-800 max-w-sm mx-auto">
-                      <span>Nominal Transfer:</span>
-                      <strong className="text-amber-400 text-sm">Rp {finalTotal.toLocaleString('id-ID')}</strong>
-                      <button 
-                        onClick={() => copyToClipboard(String(finalTotal), 'amount')}
-                        className="ml-2 p-1.5 bg-stone-800 hover:bg-stone-700 text-stone-300 hover:text-amber-400 rounded-md transition-colors"
-                        title="Salin Nominal"
-                      >
-                        {copiedField === 'amount' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* TAB 2: VIRTUAL ACCOUNT DETAILS */}
-                {paymentMethod?.startsWith('va_') && (
-                  <div className="bg-stone-950 border border-stone-800 rounded-2xl p-6 space-y-4 animate-fadeIn">
-                    <div className="text-xs font-bold text-stone-400 uppercase tracking-wider">
-                      Pilih Bank Virtual Account Duitku:
-                    </div>
-
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                      {(renderedVaList as any[]).map((key) => (
-                        <button
-                          key={key}
-                          type="button"
-                          onClick={() => setPaymentMethod(key)}
-                          className={`p-2.5 rounded-xl border text-xs font-bold transition-all ${
-                            paymentMethod === key
-                              ? 'bg-amber-500/20 border-amber-500 text-amber-300'
-                              : 'bg-stone-900 border-stone-800 text-stone-400 hover:text-white'
-                          }`}
-                        >
-                          {getVaInfo(key).bank}
-                        </button>
-                      ))}
-                    </div>
-
-                    {/* VA Box Display */}
-                    {paymentMethod?.startsWith("va_") && (
-                      <div className="bg-stone-900 p-4 rounded-xl border border-stone-800 space-y-2">
-                        <div className="text-xs text-stone-400 flex justify-between">
-                          <span>Nomor Virtual Account {getVaInfo(paymentMethod as string).bank}:</span>
-                          <span className="text-emerald-400 text-[10px] font-bold">Duitku Direct VA (24 Jam)</span>
-                        </div>
-                        <div className="flex items-center justify-between bg-stone-950 p-3 rounded-xl border border-stone-800">
-                          <span className="font-mono text-lg font-bold text-amber-400 tracking-wider">
-                            {duitkuInvoice?.vaNumber || getVaInfo(paymentMethod as string).number}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => copyToClipboard(duitkuInvoice?.vaNumber || getVaInfo(paymentMethod as string).number, 'va')}
-                            className="px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors"
-                          >
-                            {copiedField === 'va' ? (
-                              <>
-                                <Check className="w-3.5 h-3.5 text-emerald-400" />
-                                <span>Tersalin!</span>
-                              </>
-                            ) : (
-                              <>
-                                <Copy className="w-3.5 h-3.5" />
-                                <span>Salin No. VA</span>
-                              </>
-                            )}
-                          </button>
-                        </div>
-                        <div className="text-[11px] text-stone-400 leading-relaxed pt-1">
-                          Petunjuk: Buka aplikasi m-Banking Anda, pilih menu Transfer / Pembayaran &gt; Virtual Account, lalu masukkan nomor VA di atas.
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* TAB 3: E-WALLET DETAILS */}
-                {paymentMethod === 'ewallet' && (
-                  <div className="bg-stone-950 border border-stone-800 rounded-2xl p-6 space-y-4 animate-fadeIn">
-                    <div className="text-xs font-bold text-stone-400 uppercase tracking-wider">
-                      Pilih Dompet Digital:
-                    </div>
-                    
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                      {(renderedEwalletList as any[]).map((prov) => (
-                        <button
-                          key={prov}
-                          type="button"
-                          onClick={() => setEwalletProvider(prov)}
-                          className={`p-2.5 rounded-xl border text-xs font-bold uppercase transition-all ${
-                            ewalletProvider === prov
-                              ? 'bg-amber-500/20 border-amber-500 text-amber-300'
-                              : 'bg-stone-900 border-stone-800 text-stone-400 hover:text-white'
-                          }`}
-                        >
-                          {prov}
-                        </button>
-                      ))}
-                    </div>
-
-                    <div>
-                      <label className="text-xs font-semibold text-stone-300 block mb-1.5">
-                        Nomor Handphone Terdaftar di {ewalletProvider.toUpperCase()}
-                      </label>
-                      <input 
-                        type="tel"
-                        value={ewalletPhone}
-                        onChange={(e) => setEwalletPhone(e.target.value)}
-                        placeholder="Contoh: 081234567890"
-                        className="w-full bg-stone-900 border border-stone-800 focus:border-amber-500 rounded-xl px-4 py-2.5 text-xs text-white outline-none"
-                      />
-                      <div className="text-[11px] text-stone-500 mt-1">
-                        Notifikasi persetujuan pembayaran akan otomatis dikirimkan ke aplikasi {ewalletProvider.toUpperCase()} Anda.
-                      </div>
-                    </div>
-                  </div>
-                )}
-
+                  )}
+                </div>
+                
                 {/* Cancel Anytime Trust Badge */}
                 {!isTrial && (
                   <div className="flex justify-center items-center gap-1.5 mb-4 text-[11px] text-stone-400 bg-stone-900/40 p-2.5 rounded-xl border border-stone-800/80">
@@ -1040,7 +943,115 @@ export default function Checkout() {
       </>
     );
   })()}
-  {/* Action Confirmation Button */}
+  
+                
+                {/* Phone Number Input for E-Wallets */}
+                {['OV', 'SP', 'DA', 'LQ'].includes(paymentMethod) && (
+                  <div className="bg-stone-900 border border-stone-800 rounded-xl p-4 my-4 animate-fadeIn">
+                    <label className="text-xs font-semibold text-stone-300 block mb-1.5">
+                      Nomor Handphone Terdaftar (Wajib untuk OVO)
+                    </label>
+                    <input 
+                      type="tel"
+                      value={ewalletPhone}
+                      onChange={(e) => setEwalletPhone(e.target.value)}
+                      placeholder="Contoh: 081234567890"
+                      className="w-full bg-stone-950 border border-stone-800 focus:border-amber-500 rounded-xl px-4 py-2.5 text-xs text-white outline-none"
+                    />
+                  </div>
+                )}
+                
+                {/* PAYMENT DETAILS BLOCK */}
+                {duitkuInvoice && !isTrial && (
+                  <div className="bg-stone-950 border border-stone-800 rounded-2xl p-6 space-y-4 animate-fadeIn my-4">
+                    
+                    {/* QRIS / QR Code */}
+                    {(qrDataUrl || duitkuInvoice.qrString) && (
+                      <div className="text-center space-y-4">
+                        <div className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-400 bg-emerald-950/40 px-3 py-1 rounded-full border border-emerald-800/40">
+                          <Zap className="w-3.5 h-3.5" /> Realtime Instant Settlement &bull; Berlaku 24 Jam
+                        </div>
+                        <div className="bg-white p-4 rounded-2xl inline-block shadow-2xl max-w-[240px] mx-auto border border-stone-300">
+                          <div className="text-[10px] font-black text-slate-800 uppercase tracking-wider mb-2">
+                            Scan QR Code Pembayaran
+                          </div>
+                          {qrDataUrl ? (
+                            <img 
+                              src={qrDataUrl} 
+                              alt="QR Code" 
+                              className="w-48 h-48 mx-auto rounded-lg object-contain"
+                              referrerPolicy="no-referrer"
+                            />
+                          ) : (
+                            <div className="w-48 h-48 flex items-center justify-center bg-stone-100 rounded-lg">
+                              <Loader2 className="w-8 h-8 text-stone-500 animate-spin" />
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex items-center justify-center gap-2 text-xs text-stone-300 font-mono bg-stone-900 p-3 rounded-xl border border-stone-800 max-w-sm mx-auto">
+                          <span>Nominal Transfer:</span>
+                          <strong className="text-amber-400 text-sm">Rp {finalTotal.toLocaleString('id-ID')}</strong>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Virtual Account / Retail */}
+                    {duitkuInvoice.vaNumber && !qrDataUrl && !duitkuInvoice.qrString && (
+                      <div className="space-y-2">
+                        <div className="text-xs font-bold text-stone-400 uppercase tracking-wider text-center mb-2">
+                          Kode Pembayaran / Virtual Account
+                        </div>
+                        <div className="bg-stone-900 p-4 rounded-xl border border-stone-800 space-y-2">
+                          <div className="flex items-center justify-between bg-stone-950 p-3 rounded-xl border border-stone-800">
+                            <span className="font-mono text-xl font-bold text-amber-400 tracking-wider">
+                              {duitkuInvoice.vaNumber}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => copyToClipboard(duitkuInvoice.vaNumber || '', 'va')}
+                              className="px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors"
+                            >
+                              {copiedField === 'va' ? (
+                                <>
+                                  <Check className="w-3.5 h-3.5 text-emerald-400" />
+                                  <span>Tersalin!</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Copy className="w-3.5 h-3.5" />
+                                  <span>Salin</span>
+                                </>
+                              )}
+                            </button>
+                          </div>
+                          <div className="text-[11px] text-stone-400 leading-relaxed pt-1 text-center">
+                            Gunakan kode pembayaran di atas pada aplikasi m-Banking atau gerai retail yang Anda pilih.
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* E-Wallet / Redirect */}
+                    {duitkuInvoice.paymentUrl && !duitkuInvoice.vaNumber && !duitkuInvoice.qrString && (
+                      <div className="text-center space-y-4">
+                        <div className="text-xs text-stone-400 max-w-md mx-auto leading-relaxed">
+                          Klik tombol di bawah ini untuk membuka aplikasi E-Wallet atau melanjutkan pembayaran.
+                        </div>
+                        <a 
+                          href={duitkuInvoice.paymentUrl} 
+                          target="_blank" 
+                          rel="noreferrer"
+                          className="inline-block w-full sm:w-auto px-6 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-stone-950 font-bold text-sm transition-colors"
+                        >
+                          Buka Pembayaran &amp; Bayar Sekarang
+                        </a>
+                      </div>
+                    )}
+
+                  </div>
+                )}
+                
+                {/* Action Confirmation Button */}
                 <button
                   onClick={handleConfirmPayment}
                   disabled={isProcessing}
@@ -1071,7 +1082,7 @@ export default function Checkout() {
                   </div>
                   <div className="p-2.5 rounded-xl bg-stone-950 border border-stone-800/80 flex items-center justify-center gap-2">
                     <CheckCircle2 className="w-4 h-4 text-blue-400" />
-                    <span>Garansi Duitku PG Resmi</span>
+                    <span>Garansi Sistem Pembayaran Resmi</span>
                   </div>
                 </div>
 

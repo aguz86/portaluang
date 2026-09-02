@@ -33,6 +33,7 @@ import { AdminInstall } from './pages/admin/AdminInstall';
 import { AdminContent } from './pages/admin/AdminContent';
 import { AdminPosts } from './pages/admin/AdminPosts';
 import { AdminFAQs } from './pages/admin/AdminFAQs';
+import { AdminCoupons } from './pages/admin/AdminCoupons';
 import { MetaPixel } from './components/MetaPixel';
 
 
@@ -85,6 +86,7 @@ export default function App() {
           <Route path="content" element={<AdminContent />} />
           <Route path="posts" element={<AdminPosts />} />
           <Route path="faqs" element={<AdminFAQs />} />
+          <Route path="coupons" element={<AdminCoupons />} />
         </Route>
 
         {/* Fallback */}

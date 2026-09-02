@@ -1174,7 +1174,8 @@ Berikan panduan pelunasan langkah demi langkah yang jelas dengan simulasi matema
       const randomPart = Math.floor(100000 + Math.random() * 900000);
       const merchantOrderId = `INV-${datePart}-${randomPart}`;
 
-      const channelInfo = DUITKU_CHANNELS[paymentMethod] || DUITKU_CHANNELS['qris'];
+      // Restore channelInfo dynamically
+      const channelInfo = (paymentMethod && paymentMethod.length === 2) ? (Object.values(DUITKU_CHANNELS).find(c => c.code === paymentMethod) || DUITKU_CHANNELS['qris']) : (DUITKU_CHANNELS[paymentMethod] || DUITKU_CHANNELS['qris']);
       const channelCode = channelInfo.code;
 
       // Compute MD5 signature for Duitku Inquiry: MD5(merchantCode + merchantOrderId + paymentAmount + apiKey)
@@ -1290,7 +1291,7 @@ Berikan panduan pelunasan langkah demi langkah yang jelas dengan simulasi matema
       });
     } catch (err: any) {
       console.error('Error creating Duitku invoice:', err);
-      res.status(500).json({ success: false, error: 'Gagal membuat taihan pembayaran Duitku: ' + err.message });
+      res.status(500).json({ success: false, error: 'Gagal membuat tagihan pembayaran: ' + err.message });
     }
   });
 

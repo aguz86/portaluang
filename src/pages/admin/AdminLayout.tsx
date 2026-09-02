@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation, Outlet, useNavigate, Navigate } from 'react-router-dom';
 import { FaWhatsapp, FaTiktok, FaThreads, FaInstagram, FaYoutube, FaFacebook } from 'react-icons/fa6';
 import { useGlobalSettings } from '../../hooks/useGlobalSettings';
-import { FileEdit, LayoutDashboard, FileText, HelpCircle, 
+import { Ticket, FileEdit, LayoutDashboard, FileText, HelpCircle, 
   Users, 
   ReceiptText, 
   CreditCard, 
@@ -18,16 +18,17 @@ import { FileEdit, LayoutDashboard, FileText, HelpCircle,
 const ADMIN_NAV = [
   { path: '/admin/dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-5 h-5" /> },
   { path: '/admin/ai-settings', label: 'Nama & Karakter AI', icon: <Bot className="w-5 h-5" /> },
-  { path: '/admin/users', label: 'Users', icon: <Users className="w-5 h-5" /> },
-  { path: '/admin/transactions', label: 'Transactions', icon: <ReceiptText className="w-5 h-5" /> },
-  { path: '/admin/subscriptions', label: 'Subscriptions', icon: <PackageSearch className="w-5 h-5" /> },
-  { path: '/admin/payments', label: 'Payments', icon: <CreditCard className="w-5 h-5" /> },
+  { path: '/admin/users', label: 'Pengguna', icon: <Users className="w-5 h-5" /> },
+  { path: '/admin/transactions', label: 'Transaksi', icon: <ReceiptText className="w-5 h-5" /> },
+  { path: '/admin/subscriptions', label: 'Paket Langganan', icon: <PackageSearch className="w-5 h-5" /> },
+  { path: '/admin/coupons', label: 'Kupon Diskon', icon: <Ticket className="w-5 h-5" /> },
+  { path: '/admin/payments', label: 'Pembayaran (Duitku)', icon: <CreditCard className="w-5 h-5" /> },
   { path: '/admin/telegram', label: 'Telegram Bot', icon: <Send className="w-5 h-5" /> },
-  { path: '/admin/marketing', label: 'Marketing', icon: <Megaphone className="w-5 h-5" /> },
+  { path: '/admin/marketing', label: 'Pemasaran & Email', icon: <Megaphone className="w-5 h-5" /> },
   { path: '/admin/posts', label: 'Artikel Blog', icon: <FileText className="w-5 h-5" /> },
   { path: '/admin/faqs', label: 'Manajemen FAQ', icon: <HelpCircle className="w-5 h-5" /> },
   { path: '/admin/content', label: 'Halaman Statis', icon: <FileEdit className="w-5 h-5" /> },
-  { path: '/admin/settings', label: 'Settings', icon: <Settings className="w-5 h-5" /> },
+  { path: '/admin/settings', label: 'Pengaturan Sistem', icon: <Settings className="w-5 h-5" /> },
   { path: '/admin/install', label: 'Installer', icon: <Download className="w-5 h-5" /> },
 ];
 
