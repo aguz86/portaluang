@@ -19,7 +19,9 @@ import {
   Zap,
   ArrowUpRight,
   ShieldCheck,
-  CheckCircle2
+  CheckCircle2,
+  Download,
+  Gift
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { clearUserAuthSession } from '../utils/auth';
@@ -33,6 +35,7 @@ import {
   calculateSubscriptionExpiration,
   activateUserPlan,
   getPaymentHistory,
+  syncUserSubscriptionFromServer,
   UserProfile,
   UserSubscription,
   PaymentRecord
@@ -70,12 +73,19 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ showToast }) => {
   const [paymentHistory, setPaymentHistory] = useState<PaymentRecord[]>(() => getPaymentHistory());
 
   useEffect(() => {
-    const p = getUserProfile();
-    const s = getUserSubscription();
-    setProfile(p);
-    setSubscription(s);
-    setPaymentHistory(getPaymentHistory());
-    setRemainingInfo(getRemainingTimeDisplay(s.expiresAt));
+    const refreshLocal = () => {
+      const p = getUserProfile();
+      const s = getUserSubscription();
+      setProfile(p);
+      setSubscription(s);
+      setPaymentHistory(getPaymentHistory());
+      setRemainingInfo(getRemainingTimeDisplay(s.expiresAt));
+    };
+
+    refreshLocal();
+    syncUserSubscriptionFromServer().then((synced) => {
+      if (synced) refreshLocal();
+    });
 
     const interval = setInterval(() => {
       const currentSub = getUserSubscription();
@@ -85,6 +95,29 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ showToast }) => {
 
     return () => clearInterval(interval);
   }, []);
+
+  const handleDownloadInvoicePdf = async (invoiceId: string) => {
+    try {
+      const targetEmail = encodeURIComponent((profile.email || '').toLowerCase());
+      const res = await fetch(`/api/user/invoice-pdf/${encodeURIComponent(invoiceId)}?email=${targetEmail}`);
+      if (!res.ok) {
+        showToast('Invoice PDF belum tersedia di server untuk transaksi ini.');
+        return;
+      }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Invoice_${invoiceId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      showToast(`Invoice ${invoiceId}.pdf berhasil diunduh.`);
+    } catch {
+      showToast('Gagal mengunduh file invoice PDF.');
+    }
+  };
 
   const handleApplyUpgrade = (planId: SubscriptionPlanId) => {
     const targetPlan = SUBSCRIPTION_PLANS.find(p => p.id === planId) || SUBSCRIPTION_PLANS[3];
@@ -245,9 +278,15 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ showToast }) => {
                 <CreditCard className="w-4 h-4 text-emerald-400" />
                 Riwayat Pembayaran & Invois
               </h3>
-              <button onClick={() => showToast("Invois PDF siap diunduh")} className="text-xs text-amber-400 font-semibold hover:underline">
-                Unduh Invois
-              </button>
+              {paymentHistory[0]?.invoiceId && (
+                <button
+                  onClick={() => handleDownloadInvoicePdf(paymentHistory[0].invoiceId)}
+                  className="text-xs text-amber-400 font-semibold hover:underline inline-flex items-center gap-1"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  Unduh Invois Terbaru
+                </button>
+              )}
             </div>
             
             <div className="overflow-x-auto">
@@ -256,27 +295,57 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ showToast }) => {
                   <tr className="text-stone-400 border-b border-stone-800/60">
                     <th className="py-2.5 px-3 font-semibold">No. Invois</th>
                     <th className="py-2.5 px-3 font-semibold">Tanggal</th>
-                    <th className="py-2.5 px-3 font-semibold">Paket</th>
+                    <th className="py-2.5 px-3 font-semibold">Paket / Keterangan</th>
                     <th className="py-2.5 px-3 font-semibold text-right">Jumlah</th>
                     <th className="py-2.5 px-3 font-semibold text-center">Status</th>
+                    <th className="py-2.5 px-3 font-semibold text-right">PDF</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-stone-800/60">
-                  {paymentHistory.map((payment, i) => (
-                    <tr key={i} className="text-stone-300 hover:bg-stone-850/50 transition-colors">
-                      <td className="py-3 px-3 font-mono text-xs text-stone-400">{payment.invoiceId || payment.id}</td>
-                      <td className="py-3 px-3 whitespace-nowrap">{payment.date}</td>
-                      <td className="py-3 px-3 text-amber-300 font-medium">{payment.planName}</td>
-                      <td className="py-3 px-3 text-right font-mono font-semibold">
-                        {payment.amount === 0 ? "Rp 0 (Trial)" : `Rp ${payment.amount.toLocaleString('id-ID')}`}
-                      </td>
-                      <td className="py-3 px-3 text-center">
-                        <span className="inline-block px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-400 border border-emerald-800 text-[10px] font-bold uppercase tracking-wider">
-                          {payment.status === 'free_trial' ? 'Free Trial' : 'Lunas'}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
+                  {paymentHistory.map((payment, i) => {
+                    const isComp = Boolean(payment.isCompensation || payment.status === 'compensation' || String(payment.invoiceId || '').startsWith('INV-COMP'));
+                    return (
+                      <tr key={payment.invoiceId || i} className="text-stone-300 hover:bg-stone-850/50 transition-colors">
+                        <td className="py-3 px-3 font-mono text-xs text-stone-300">{payment.invoiceId || payment.id}</td>
+                        <td className="py-3 px-3 whitespace-nowrap">{payment.date}</td>
+                        <td className="py-3 px-3">
+                          <div className={`font-medium flex items-center gap-1.5 ${isComp ? 'text-emerald-300' : 'text-amber-300'}`}>
+                            {isComp && <Gift className="w-3.5 h-3.5 shrink-0" />}
+                            <span>{payment.planName}</span>
+                          </div>
+                        </td>
+                        <td className="py-3 px-3 text-right font-mono font-semibold">
+                          {isComp
+                            ? 'Rp 0 (Kompensasi)'
+                            : payment.amount === 0
+                            ? 'Rp 0 (Trial)'
+                            : `Rp ${payment.amount.toLocaleString('id-ID')}`}
+                        </td>
+                        <td className="py-3 px-3 text-center">
+                          {isComp ? (
+                            <span className="inline-block px-2 py-0.5 rounded-full bg-cyan-950 text-cyan-300 border border-cyan-800 text-[10px] font-bold uppercase tracking-wider">
+                              Kompensasi
+                            </span>
+                          ) : (
+                            <span className="inline-block px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-400 border border-emerald-800 text-[10px] font-bold uppercase tracking-wider">
+                              {payment.status === 'free_trial' ? 'Free Trial' : payment.status === 'pending' ? 'Menunggu' : 'Lunas'}
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-3 px-3 text-right">
+                          <button
+                            type="button"
+                            onClick={() => handleDownloadInvoicePdf(payment.invoiceId || payment.id)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-stone-950 hover:bg-stone-800 border border-stone-800 text-amber-400 text-[11px] font-bold transition-colors"
+                            title="Unduh PDF Invoice"
+                          >
+                            <Download className="w-3 h-3" />
+                            PDF
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 
-// Use environment variable for the encryption key, with a 32-byte fallback for this preview
-const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || 'duitku_secret_enc_key_32_bytes_!';
+// Use environment variable for the encryption key, with an ephemeral runtime fallback
+const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || crypto.randomBytes(32).toString('hex');
 const IV_LENGTH = 16; 
 
 export function encrypt(text: string): string {

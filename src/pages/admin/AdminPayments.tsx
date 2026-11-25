@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { CreditCard, CheckCircle2, Clock, AlertCircle, RefreshCw, ShieldCheck, ArrowUpRight, Search, Play } from 'lucide-react';
+import { CreditCard, CheckCircle2, Clock, AlertCircle, RefreshCw, ShieldCheck, Search, Download, Gift } from 'lucide-react';
 import { formatRupiah } from '../../types';
 
 interface DuitkuTransactionRecord {
@@ -17,6 +17,10 @@ interface DuitkuTransactionRecord {
   qrString?: string;
   createdAt: string;
   paidAt?: string;
+  env?: 'sandbox' | 'production' | 'compensation';
+  isCompensation?: boolean;
+  bonusDays?: number;
+  reason?: string;
 }
 
 export const AdminPayments: React.FC = () => {
@@ -28,10 +32,16 @@ export const AdminPayments: React.FC = () => {
   const [filterEnv, setFilterEnv] = useState<string>('ALL');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
+  const getToken = () => localStorage.getItem('admin_token') || localStorage.getItem('adminToken') || '';
+
   const fetchTransactions = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/admin/duitku/transactions');
+      const res = await fetch('/api/admin/duitku/transactions', {
+        headers: {
+          Authorization: `Bearer ${getToken()}`,
+        },
+      });
       const data = await res.json();
       if (data.success) {
         setTransactions(data.transactions || []);
@@ -68,24 +78,46 @@ export const AdminPayments: React.FC = () => {
     }
   };
 
-  const filtered = transactions.filter(t => {
-    const matchesSearch = 
+  const handleDownloadPdf = async (merchantOrderId: string) => {
+    try {
+      const res = await fetch(`/api/user/invoice-pdf/${encodeURIComponent(merchantOrderId)}`, {
+        headers: {
+          Authorization: `Bearer ${getToken()}`,
+        },
+      });
+      if (!res.ok) throw new Error('Gagal mengunduh invoice PDF');
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Invoice_${merchantOrderId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch {
+      alert('Gagal mengunduh file invoice PDF.');
+    }
+  };
+
+  const filtered = transactions.filter((t) => {
+    const matchesSearch =
       t.merchantOrderId.toLowerCase().includes(search.toLowerCase()) ||
       t.email.toLowerCase().includes(search.toLowerCase()) ||
       t.planName.toLowerCase().includes(search.toLowerCase()) ||
-      t.paymentMethodName.toLowerCase().includes(search.toLowerCase());
+      (t.paymentMethodName || '').toLowerCase().includes(search.toLowerCase());
     const matchesStatus = filterStatus === 'ALL' || t.status === filterStatus;
-    const envVal = (t as any).env || 'sandbox'; // Fallback to sandbox for old transactions
+    const envVal = t.isCompensation || t.env === 'compensation' ? 'compensation' : t.env || 'sandbox';
     const matchesEnv = filterEnv === 'ALL' || envVal === filterEnv;
     return matchesSearch && matchesStatus && matchesEnv;
   });
 
   const totalVolume = transactions
-    .filter(t => t.status === 'SUCCESS')
+    .filter((t) => t.status === 'SUCCESS')
     .reduce((sum, t) => sum + (t.amount || 0), 0);
 
-  const successCount = transactions.filter(t => t.status === 'SUCCESS').length;
-  const pendingCount = transactions.filter(t => t.status === 'PENDING').length;
+  const successCount = transactions.filter((t) => t.status === 'SUCCESS').length;
+  const pendingCount = transactions.filter((t) => t.status === 'PENDING').length;
 
   return (
     <div className="space-y-6">
@@ -93,10 +125,10 @@ export const AdminPayments: React.FC = () => {
         <div>
           <h1 className="text-2xl font-bold text-stone-100 flex items-center gap-2">
             <CreditCard className="w-6 h-6 text-amber-500" />
-            Duitku Payment Gateway Logs
+            Duitku Payment Gateway & Invoice Logs
           </h1>
           <p className="text-sm text-stone-400 mt-1">
-            Pantau status transaksi live, verifikasi webhook IPN, dan riwayat aktivasi otomatis.
+            Pantau status transaksi live, verifikasi webhook IPN, serta invoice kompensasi admin.
           </p>
         </div>
         <button
@@ -114,7 +146,7 @@ export const AdminPayments: React.FC = () => {
         <div className="bg-stone-900 border border-stone-800 rounded-2xl p-5">
           <div className="text-xs font-bold text-stone-400 uppercase tracking-wider">Total Omzet Lunas</div>
           <div className="text-2xl font-bold text-emerald-400 mt-2">{formatRupiah(totalVolume)}</div>
-          <div className="text-[11px] text-stone-500 mt-1">{successCount} Transaksi Sukses</div>
+          <div className="text-[11px] text-stone-500 mt-1">{successCount} Transaksi & Kompensasi</div>
         </div>
 
         <div className="bg-stone-900 border border-stone-800 rounded-2xl p-5">
@@ -154,6 +186,16 @@ export const AdminPayments: React.FC = () => {
           />
         </div>
         <select
+          value={filterEnv}
+          onChange={(e) => setFilterEnv(e.target.value)}
+          className="bg-stone-900 border border-stone-800 rounded-xl px-4 py-2.5 text-stone-200 text-sm font-semibold focus:border-amber-500 focus:outline-none"
+        >
+          <option value="ALL">Semua Sumber</option>
+          <option value="production">Duitku Live</option>
+          <option value="sandbox">Duitku Sandbox</option>
+          <option value="compensation">Invoice Kompensasi</option>
+        </select>
+        <select
           value={filterStatus}
           onChange={(e) => setFilterStatus(e.target.value)}
           className="bg-stone-900 border border-stone-800 rounded-xl px-4 py-2.5 text-stone-200 text-sm font-semibold focus:border-amber-500 focus:outline-none"
@@ -182,79 +224,98 @@ export const AdminPayments: React.FC = () => {
               {filtered.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-6 py-12 text-center text-stone-500 text-sm">
-                    {loading ? 'Memuat data transaksi Duitku...' : 'Belum ada transaksi pembayaran tercatat.'}
+                    {loading ? 'Memuat data transaksi & invoice...' : 'Belum ada transaksi pembayaran tercatat.'}
                   </td>
                 </tr>
               ) : (
-                filtered.map((tx) => (
-                  <tr key={tx.merchantOrderId} className="hover:bg-stone-850/50 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center gap-2 mb-1">
-                        <div className="text-sm font-mono font-bold text-stone-200">{tx.merchantOrderId}</div>
-                        {(tx as any).env === 'production' ? (
-                          <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 text-[9px] font-bold uppercase tracking-widest border border-emerald-500/30">Live</span>
-                        ) : (
-                          <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 text-[9px] font-bold uppercase tracking-widest border border-amber-500/30">Sandbox</span>
+                filtered.map((tx) => {
+                  const isComp = Boolean(tx.isCompensation || tx.env === 'compensation');
+                  return (
+                    <tr key={tx.merchantOrderId} className="hover:bg-stone-850/50 transition-colors">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center gap-2 mb-1">
+                          <div className="text-sm font-mono font-bold text-stone-200">{tx.merchantOrderId}</div>
+                          {isComp ? (
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 text-[9px] font-bold uppercase tracking-widest border border-cyan-500/30">
+                              <Gift className="w-2.5 h-2.5" /> Kompensasi
+                            </span>
+                          ) : tx.env === 'production' ? (
+                            <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 text-[9px] font-bold uppercase tracking-widest border border-emerald-500/30">Live</span>
+                          ) : (
+                            <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 text-[9px] font-bold uppercase tracking-widest border border-amber-500/30">Sandbox</span>
+                          )}
+                        </div>
+                        <div className="text-xs text-stone-500 font-mono">Ref: {tx.reference}</div>
+                        <div className="text-[11px] text-stone-500 mt-0.5">
+                          {new Date(tx.createdAt).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="text-sm font-semibold text-stone-200">{tx.email}</div>
+                        <div className={`text-xs font-medium ${isComp ? 'text-emerald-400' : 'text-amber-400/90'}`}>
+                          {tx.planName}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-bold text-stone-100">
+                          {isComp ? 'Rp 0 (Kompensasi)' : formatRupiah(tx.amount)}
+                        </div>
+                        <div className="text-xs text-stone-400">{tx.paymentMethodName || tx.paymentMethod}</div>
+                        {tx.vaNumber && (
+                          <div className="text-[11px] font-mono text-stone-400 mt-0.5">VA: {tx.vaNumber}</div>
                         )}
-                      </div>
-                      <div className="text-xs text-stone-500 font-mono">Ref: {tx.reference}</div>
-                      <div className="text-[11px] text-stone-500 mt-0.5">
-                        {new Date(tx.createdAt).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-semibold text-stone-200">{tx.email}</div>
-                      <div className="text-xs text-amber-400/90 font-medium">{tx.planName}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-bold text-stone-100">{formatRupiah(tx.amount)}</div>
-                      <div className="text-xs text-stone-400">{tx.paymentMethodName || tx.paymentMethod}</div>
-                      {tx.vaNumber && (
-                        <div className="text-[11px] font-mono text-stone-400 mt-0.5">VA: {tx.vaNumber}</div>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {tx.status === 'SUCCESS' && (
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                          <CheckCircle2 className="w-3.5 h-3.5" /> Lunas / Aktif
-                        </span>
-                      )}
-                      {tx.status === 'PENDING' && (
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                          <Clock className="w-3.5 h-3.5" /> Menunggu Bayar
-                        </span>
-                      )}
-                      {tx.status === 'FAILED' && (
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20">
-                          <AlertCircle className="w-3.5 h-3.5" /> Gagal
-                        </span>
-                      )}
-                      {tx.status === 'EXPIRED' && (
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-stone-500/10 text-stone-400 border border-stone-500/20">
-                          Kadaluarsa
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      {tx.status === 'PENDING' && (
-                        <button
-                          onClick={() => handleCheckStatus(tx.merchantOrderId)}
-                          disabled={actionLoading === tx.merchantOrderId}
-                          className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-lg text-xs font-bold transition-colors"
-                          title="Cek Status Pembayaran ke Duitku"
-                        >
-                          <RefreshCw className="w-3 h-3" />
-                          {actionLoading === tx.merchantOrderId ? 'Mengecek...' : 'Cek Status'}
-                        </button>
-                      )}
-                      {tx.status === 'SUCCESS' && (
-                        <span className="text-xs text-stone-500 font-mono">
-                          {tx.paidAt ? new Date(tx.paidAt).toLocaleTimeString('id-ID') : 'Aktif'}
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                ))
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {tx.status === 'SUCCESS' && (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                            <CheckCircle2 className="w-3.5 h-3.5" /> {isComp ? 'Kompensasi Aktif' : 'Lunas / Aktif'}
+                          </span>
+                        )}
+                        {tx.status === 'PENDING' && (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                            <Clock className="w-3.5 h-3.5" /> Menunggu Bayar
+                          </span>
+                        )}
+                        {tx.status === 'FAILED' && (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20">
+                            <AlertCircle className="w-3.5 h-3.5" /> Gagal
+                          </span>
+                        )}
+                        {tx.status === 'EXPIRED' && (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-stone-500/10 text-stone-400 border border-stone-500/20">
+                            Kadaluarsa
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <div className="flex items-center justify-end gap-2">
+                          {tx.status === 'PENDING' && (
+                            <button
+                              onClick={() => handleCheckStatus(tx.merchantOrderId)}
+                              disabled={actionLoading === tx.merchantOrderId}
+                              className="inline-flex items-center gap-1 px-3 py-1.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-lg text-xs font-bold transition-colors"
+                              title="Cek Status Pembayaran ke Duitku"
+                            >
+                              <RefreshCw className="w-3 h-3" />
+                              {actionLoading === tx.merchantOrderId ? 'Mengecek...' : 'Cek Status'}
+                            </button>
+                          )}
+                          {tx.status === 'SUCCESS' && (
+                            <button
+                              type="button"
+                              onClick={() => handleDownloadPdf(tx.merchantOrderId)}
+                              className="inline-flex items-center gap-1 px-3 py-1.5 bg-stone-800 hover:bg-stone-700 text-amber-300 border border-stone-700 rounded-lg text-xs font-bold transition-colors"
+                              title="Unduh Invoice PDF"
+                            >
+                              <Download className="w-3.5 h-3.5" />
+                              PDF
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -263,4 +324,3 @@ export const AdminPayments: React.FC = () => {
     </div>
   );
 };
-

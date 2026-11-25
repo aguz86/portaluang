@@ -34,7 +34,8 @@ import {
 import * as SampleData from "./data/sampleData";
 
 import { Navbar } from './components/Navbar';
-import { getUserProfile } from './utils/subscription';
+import { getUserProfile, syncUserSubscriptionFromServer, UserSubscription } from './utils/subscription';
+import { CompensationNoticeBanner, MaintenanceConfig, UserCompensationNotice } from './components/MaintenanceGate';
 import { DashboardView } from './components/DashboardView';
 import { ZeroBasedBudgetView } from './components/ZeroBasedBudgetView';
 import { TransactionsView } from './components/TransactionsView';
@@ -134,12 +135,16 @@ export default function DashboardApp() {
   const [socials, setSocials] = useState<any>({});
   const pwa = usePWAInstall();
   
-  // Subscription Expiry Logic
-  const userProfile = getUserProfile();
-  const subStatus = userProfile.subscription?.status || 'active';
-  const expiresAt = userProfile.subscription?.expiresAt ? new Date(userProfile.subscription.expiresAt).getTime() : Date.now();
+  // Subscription Expiry Logic (synchronized with server on mount)
+  const initialProfile = getUserProfile();
+  const [liveSubscription, setLiveSubscription] = useState<UserSubscription | undefined>(initialProfile.subscription);
+  const [maintenanceConfig, setMaintenanceConfig] = useState<MaintenanceConfig | null>(null);
+  const [userCompensationNotice, setUserCompensationNotice] = useState<UserCompensationNotice | null>(null);
+
+  const subStatus = liveSubscription?.status || 'active';
+  const expiresAt = liveSubscription?.expiresAt ? new Date(liveSubscription.expiresAt).getTime() : Date.now();
   const isExpired = subStatus === 'expired' || Date.now() > expiresAt;
-  const isTrial = userProfile.subscription?.planId === 'free_trial';
+  const isTrial = liveSubscription?.planId === 'free_trial';
   const daysSinceExpiry = isExpired ? Math.floor((Date.now() - expiresAt) / (1000 * 60 * 60 * 24)) : -1;
   const inGracePeriod = isExpired && daysSinceExpiry >= 0 && daysSinceExpiry <= 7;
   const isBlocked = isExpired && daysSinceExpiry > 7;
@@ -150,11 +155,24 @@ export default function DashboardApp() {
     fetch('/api/public-settings')
       .then(res => res.json())
       .then(data => {
-        if (data.success && data.socials) {
-          setSocials(data.socials);
+        if (data.success) {
+          if (data.socials) setSocials(data.socials);
+          if (data.maintenanceConfig) setMaintenanceConfig(data.maintenanceConfig);
         }
       })
       .catch(console.error);
+
+    syncUserSubscriptionFromServer().then((synced) => {
+      if (synced?.subscription) {
+        setLiveSubscription({
+          ...synced.subscription,
+          status: new Date(synced.subscription.expiresAt).getTime() < Date.now() ? 'expired' : 'active',
+        });
+      }
+      if (synced?.compensationNotice) {
+        setUserCompensationNotice(synced.compensationNotice);
+      }
+    });
   }, []);
   // Persistent state loader
   const loadInitialState = () => {
@@ -870,6 +888,12 @@ export default function DashboardApp() {
         notificationSettings={notificationSettings}
         onOpenInstallModal={() => pwa.promptInstall()}
         isStandalone={pwa.isStandalone}
+      />
+
+      <CompensationNoticeBanner
+        maintenanceConfig={maintenanceConfig}
+        userCompensationNotice={userCompensationNotice}
+        onViewProfile={() => navigate('/app/profile')}
       />
 
       {inGracePeriod && !isBlocked && (

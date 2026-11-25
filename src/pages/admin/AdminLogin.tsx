@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Shield, Key, AlertTriangle, ArrowRight, Eye, EyeOff, ShieldCheck, Check, X } from 'lucide-react';
+import { Shield, Key, AlertTriangle, ArrowRight, Eye, EyeOff, ShieldCheck, Check, X, Sparkles } from 'lucide-react';
 
 export const AdminLogin: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -8,41 +8,73 @@ export const AdminLogin: React.FC = () => {
   const [twoFactor, setTwoFactor] = useState('');
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [needsBootstrap, setNeedsBootstrap] = useState(false);
+  const [totpRequired, setTotpRequired] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const checkBootstrap = async () => {
+      try {
+        const res = await fetch('/api/admin/bootstrap-status');
+        const data = await res.json();
+        if (data.success) {
+          setNeedsBootstrap(Boolean(data.needsBootstrap));
+          setTotpRequired(Boolean(data.totpEnabled));
+        }
+      } catch {
+        // Default to standard login if status check fails
+      }
+    };
+    checkBootstrap();
+  }, []);
 
   const criteria = {
     length: password.length > 0 && password.length >= 8,
     uppercase: /[A-Z]/.test(password),
     number: /\d/.test(password),
-    special: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)
+    special: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password),
   };
 
   const isPasswordValid = Object.values(criteria).every(Boolean);
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
     if (!isPasswordValid) {
       setError('Kata sandi belum memenuhi semua kriteria keamanan');
       return;
     }
+    setSubmitting(true);
     try {
-      const res = await fetch('/api/admin/login', {
+      const endpoint = needsBootstrap ? '/api/admin/bootstrap' : '/api/admin/login';
+      const bodyPayload = needsBootstrap ? { email, password } : { email, password, twoFactor };
+
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, twoFactor })
+        body: JSON.stringify(bodyPayload),
       });
       const data = await res.json();
-      
+
       if (data.success && data.token) {
         localStorage.setItem('admin_token', data.token);
         navigate('/admin/dashboard');
       } else {
         setError(data.error || 'Invalid credentials or IP not whitelisted.');
       }
-    } catch (err) {
-      setError('Koneksi gagal. Server mungkin sedang down (502). Pastikan Anda sudah mem-push (sync) kode terbaru ke GitHub agar Render melakukan deploy ulang.');
+    } catch {
+      setError('Koneksi gagal ke server backend.');
+    } finally {
+      setSubmitting(false);
     }
   };
+
+  const canSubmit =
+    !submitting &&
+    isPasswordValid &&
+    Boolean(email.trim()) &&
+    (needsBootstrap || !totpRequired || Boolean(twoFactor.trim()));
 
   return (
     <div className="min-h-screen bg-stone-950 flex flex-col justify-center py-12 sm:px-6 lg:px-8 selection:bg-rose-500 selection:text-stone-950 font-sans">
@@ -53,17 +85,29 @@ export const AdminLogin: React.FC = () => {
           </div>
         </div>
         <h2 className="mt-6 text-center text-3xl font-extrabold text-stone-100 tracking-tight">
-          Admin Portal
+          {needsBootstrap ? 'Setup Admin Pertama' : 'Admin Portal'}
         </h2>
         <p className="mt-2 text-center text-sm text-stone-400">
-          Restricted Access. IP Address Logged.
+          {needsBootstrap
+            ? 'ADMIN_PASSWORD ENV belum diset. Buat kredensial admin perdana (di-hash scrypt di server).'
+            : 'Restricted Access. IP Address Logged.'}
         </p>
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-stone-900 border border-stone-800 py-8 px-4 shadow sm:rounded-xl sm:px-10">
-          <form className="space-y-6" onSubmit={handleLogin}>
+          {needsBootstrap && (
+            <div className="mb-6 bg-amber-500/10 border border-amber-500/25 rounded-xl p-4 flex items-start gap-3">
+              <Sparkles className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+              <p className="text-xs text-amber-200 leading-relaxed">
+                Kredensial perdana ini otomatis terkunci setelah dibuat. Untuk produksi, disarankan menyetel{' '}
+                <code className="text-amber-300">ADMIN_EMAIL</code> &{' '}
+                <code className="text-amber-300">ADMIN_PASSWORD</code> melalui Environment Variables server.
+              </p>
+            </div>
+          )}
 
+          <form className="space-y-6" onSubmit={handleSubmit}>
             <div>
               <label className="block text-sm font-medium text-stone-300">Admin Email</label>
               <div className="mt-2">
@@ -84,11 +128,12 @@ export const AdminLogin: React.FC = () => {
                 <p className="text-sm text-rose-400 font-medium">{error}</p>
               </div>
             )}
+
             <div>
               <label className="block text-sm font-medium text-stone-300">Admin Password</label>
               <div className="mt-2 relative">
                 <input
-                  type={showPassword ? "text" : "password"}
+                  type={showPassword ? 'text' : 'password'}
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -105,24 +150,27 @@ export const AdminLogin: React.FC = () => {
               </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-stone-300">2FA Code</label>
-              <div className="mt-2 relative">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <Key className="h-5 w-5 text-stone-500" />
+            {!needsBootstrap && (
+              <div>
+                <label className="block text-sm font-medium text-stone-300">
+                  2FA Code {totpRequired ? '(Wajib)' : '(Opsional jika 2FA belum aktif)'}
+                </label>
+                <div className="mt-2 relative">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <Key className="h-5 w-5 text-stone-500" />
+                  </div>
+                  <input
+                    type="text"
+                    required={totpRequired}
+                    value={twoFactor}
+                    onChange={(e) => setTwoFactor(e.target.value)}
+                    className="appearance-none block w-full pl-11 pr-4 py-3 border border-stone-700 rounded-xl bg-stone-950 text-stone-100 placeholder-stone-500 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-rose-500 sm:text-sm transition-shadow"
+                    placeholder="Enter 6-digit code"
+                  />
                 </div>
-                <input
-                  type="text"
-                  required
-                  value={twoFactor}
-                  onChange={(e) => setTwoFactor(e.target.value)}
-                  className="appearance-none block w-full pl-11 pr-4 py-3 border border-stone-700 rounded-xl bg-stone-950 text-stone-100 placeholder-stone-500 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-rose-500 sm:text-sm transition-shadow"
-                  placeholder="Enter 6-digit code (123456)"
-                />
               </div>
-            </div>
+            )}
 
-            {/* Password Checklist */}
             <div className="bg-stone-950 border border-stone-800 rounded-xl p-4 mt-4">
               <h3 className="text-xs font-bold text-stone-300 mb-3 flex items-center gap-2">
                 <ShieldCheck className="w-4 h-4 text-rose-500" />
@@ -150,14 +198,14 @@ export const AdminLogin: React.FC = () => {
 
             <button
               type="submit"
-              disabled={!isPasswordValid || !email.trim() || !twoFactor.trim()}
+              disabled={!canSubmit}
               className={`w-full flex justify-center items-center gap-2 py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-bold transition-all ${
-                !isPasswordValid || !email.trim() || !twoFactor.trim()
+                !canSubmit
                   ? 'bg-stone-800 text-stone-500 cursor-not-allowed'
                   : 'text-stone-950 bg-rose-500 hover:bg-rose-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-rose-500'
               }`}
             >
-              Authenticate <ArrowRight className="w-4 h-4" />
+              {needsBootstrap ? 'Buat Admin & Masuk' : 'Authenticate'} <ArrowRight className="w-4 h-4" />
             </button>
           </form>
         </div>

@@ -1,41 +1,43 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Send, 
-  Users, 
-  MessageSquare, 
-  Settings, 
-  Loader2, 
-  Save, 
-  CheckCircle2, 
-  ExternalLink, 
-  AlertCircle, 
-  Bot, 
-  Sparkles,
+import {
+  Send,
+  MessageSquare,
+  Settings,
+  Loader2,
+  CheckCircle2,
+  AlertCircle,
+  Bot,
   Link,
-  Radio
+  Radio,
+  Lock
 } from 'lucide-react';
+import { PluConnectedBadge } from '../../components/PluConnectedBadge';
 
 export const AdminTelegram: React.FC = () => {
   const [message, setMessage] = useState('');
-  const [botToken, setBotToken] = useState('');
+  const [configured, setConfigured] = useState(false);
   const [botUsername, setBotUsername] = useState('');
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [broadcasting, setBroadcasting] = useState(false);
   const [testingBot, setTestingBot] = useState(false);
-  const [testResult, setTestResult] = useState<{ success: boolean; text: string } | null>(null);
+  const [feedback, setFeedback] = useState<{ success: boolean; text: string } | null>(null);
 
   useEffect(() => {
-    fetchSettings();
+    fetchTelegramStatus();
   }, []);
 
-  const fetchSettings = async () => {
+  const fetchTelegramStatus = async () => {
     try {
-      const res = await fetch('/api/admin/settings');
+      const token = localStorage.getItem('admin_token');
+      const res = await fetch('/api/admin/telegram/status', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
       const data = await res.json();
-      if (data.success && data.data) {
-        setBotToken(data.data.telegramBotToken || '');
-        setBotUsername(data.data.telegramBotUsername || '');
+      if (data.success) {
+        setConfigured(Boolean(data.configured));
+        setBotUsername(data.username || '');
       }
     } catch (err) {
       console.error(err);
@@ -44,57 +46,34 @@ export const AdminTelegram: React.FC = () => {
     }
   };
 
-  const handleSaveToken = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSaving(true);
-    setTestResult(null);
-    try {
-      const res = await fetch('/api/admin/settings');
-      const data = await res.json();
-      const current = data.success && data.data ? data.data : {};
-      
-      current.telegramBotToken = botToken;
-      current.telegramBotUsername = botUsername;
-
-      const saveRes = await fetch('/api/admin/settings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(current)
-      });
-      if (saveRes.ok) {
-        setTestResult({ success: true, text: 'Konfigurasi Bot Telegram berhasil disimpan!' });
-      }
-    } catch (err) {
-      setTestResult({ success: false, text: 'Gagal menyimpan konfigurasi' });
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleTestBot = async () => {
-    if (!botToken) {
-      setTestResult({ success: false, text: 'Silakan masukkan Bot Token terlebih dahulu' });
-      return;
-    }
+  const handleVerifyBotServer = async () => {
     setTestingBot(true);
-    setTestResult(null);
+    setFeedback(null);
     try {
-      const res = await fetch(`https://api.telegram.org/bot${botToken}/getMe`);
+      const token = localStorage.getItem('admin_token');
+      const res = await fetch('/api/admin/telegram/verify', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
       const data = await res.json();
-      if (data.ok && data.result) {
-        setBotUsername(data.result.username || '');
-        setTestResult({
+      if (res.ok && data.success) {
+        setConfigured(true);
+        setBotUsername(data.username || '');
+        setFeedback({
           success: true,
-          text: `✅ Bot terverifikasi: @${data.result.username} (${data.result.first_name})`
+          text: `Bot terverifikasi melalui server: @${data.username} (${data.firstName})`,
         });
       } else {
-        setTestResult({
+        setFeedback({
           success: false,
-          text: `❌ Gagal verifikasi: ${data.description || 'Token tidak valid'}`
+          text: data.error || 'Gagal memverifikasi TELEGRAM_BOT_TOKEN di server.',
         });
       }
-    } catch (err) {
-      setTestResult({ success: false, text: 'Gagal menghubungi Telegram API' });
+    } catch {
+      setFeedback({ success: false, text: 'Gagal menghubungi server untuk verifikasi Telegram API.' });
     } finally {
       setTestingBot(false);
     }
@@ -102,25 +81,36 @@ export const AdminTelegram: React.FC = () => {
 
   const handleBroadcast = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!message) return;
+    if (!message.trim()) return;
     setBroadcasting(true);
-    
+    setFeedback(null);
+
     try {
+      const token = localStorage.getItem('admin_token');
       const res = await fetch('/api/admin/telegram/broadcast', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message })
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ message }),
       });
       const data = await res.json();
-      
-      if (data.success) {
-        alert('Pesan broadcast berhasil diinisialisasi!');
+
+      if (res.ok && data.success) {
+        setFeedback({
+          success: true,
+          text: data.message || 'Pesan broadcast berhasil dikirim ke pengguna Telegram terhubung!',
+        });
         setMessage('');
       } else {
-        alert('Gagal broadcast: ' + (data.error || 'Terjadi kesalahan'));
+        setFeedback({
+          success: false,
+          text: data.error || 'Gagal mengirim broadcast Telegram.',
+        });
       }
-    } catch (err) {
-      alert('Terjadi kesalahan jaringan');
+    } catch {
+      setFeedback({ success: false, text: 'Terjadi kesalahan jaringan saat broadcast.' });
     } finally {
       setBroadcasting(false);
     }
@@ -134,103 +124,97 @@ export const AdminTelegram: React.FC = () => {
           <span>Telegram Bot & Notifikasi Pengguna</span>
         </h1>
         <p className="text-sm text-stone-400 mt-1">
-          Kelola integrasi bot Telegram, webhook otomatis, dan pesan broadcast ke seluruh pengguna Portal Uang.
+          Kelola status koneksi Bot Telegram (via Environment Variable) dan kirim pesan broadcast ke pengguna Portal Uang.
         </p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
-          
-          {/* BOT CONFIGURATION CARD */}
+          {/* BOT CONFIGURATION STATUS CARD (ENV-ONLY) */}
           <div className="bg-stone-900 border border-stone-800 rounded-3xl p-6 shadow-sm">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-base font-bold text-stone-100 flex items-center gap-2">
-                <Settings className="w-5 h-5 text-amber-500" /> 
-                <span>Konfigurasi Bot Telegram</span>
+                <Settings className="w-5 h-5 text-amber-500" />
+                <span>Kredensial Bot Telegram (ENV Server Only)</span>
               </h3>
-              {botToken && (
-                <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                  Bot Aktif
-                </span>
-              )}
+              <PluConnectedBadge
+                connected={configured}
+                configured={false}
+                size="sm"
+                labelConnected="CONNECTED"
+                labelUnconfigured="Belum diset di ENV"
+              />
             </div>
-            
+
             {loading ? (
-              <div className="flex justify-center p-6"><Loader2 className="w-6 h-6 animate-spin text-stone-500" /></div>
+              <div className="flex justify-center p-6">
+                <Loader2 className="w-6 h-6 animate-spin text-stone-500" />
+              </div>
             ) : (
-              <form onSubmit={handleSaveToken} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-medium text-stone-300 mb-1">
-                    Telegram Bot Token (dari @BotFather)
-                  </label>
-                  <input
-                    type="password"
-                    value={botToken}
-                    onChange={e => setBotToken(e.target.value)}
-                    placeholder="123456789:ABCdef..."
-                    className="w-full bg-stone-950 border border-stone-800 rounded-2xl px-4 py-3 text-sm text-stone-200 focus:outline-none focus:border-cyan-500 font-mono"
-                  />
-                  <p className="text-[11px] text-stone-500 mt-1.5 leading-relaxed">
-                    Dapatkan token gratis dengan mengirimkan <code className="text-cyan-400">/newbot</code> ke @BotFather di Telegram.
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-stone-300 mb-1">
-                    Bot Username (contoh: Portal UangBot)
-                  </label>
-                  <div className="flex gap-2">
-                    <div className="relative flex-1">
-                      <span className="absolute left-4 top-3 text-stone-500 text-sm">@</span>
-                      <input
-                        type="text"
-                        value={botUsername}
-                        onChange={e => setBotUsername(e.target.value.replace(/^@/, ''))}
-                        placeholder="Portal UangBot"
-                        className="w-full bg-stone-950 border border-stone-800 rounded-2xl pl-8 pr-4 py-3 text-sm text-stone-200 focus:outline-none focus:border-cyan-500 font-mono"
-                      />
+              <div className="space-y-4">
+                <div className="p-4 rounded-2xl bg-stone-950 border border-stone-800 flex items-start gap-3">
+                  <Lock className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+                  <div className="space-y-1 text-xs text-stone-300">
+                    <div className="font-bold text-stone-100">
+                      Token Bot disimpan eksklusif di Environment Variable server
                     </div>
-                    <button
-                      type="button"
-                      onClick={handleTestBot}
-                      disabled={testingBot || !botToken}
-                      className="px-4 py-3 bg-stone-800 hover:bg-stone-700 text-cyan-400 rounded-2xl text-xs font-bold flex items-center gap-1.5 transition-colors disabled:opacity-50"
-                    >
-                      {testingBot ? <Loader2 className="w-4 h-4 animate-spin" /> : <Radio className="w-4 h-4" />}
-                      <span>Uji & Deteksi</span>
-                    </button>
+                    <p className="text-stone-400 leading-relaxed">
+                      Demi keamanan, <code className="text-cyan-400">TELEGRAM_BOT_TOKEN</code> (dan opsional{' '}
+                      <code className="text-cyan-400">TELEGRAM_BOT_USERNAME</code>) hanya dikonfigurasi pada panel
+                      Environment Variables server dan tidak pernah diinput atau dikirim ke browser.
+                    </p>
                   </div>
                 </div>
 
-                {testResult && (
-                  <div className={`p-3 rounded-2xl text-xs flex items-center gap-2 ${testResult.success ? 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-300 border border-rose-500/20'}`}>
-                    {testResult.success ? <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" /> : <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />}
-                    <span>{testResult.text}</span>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl bg-stone-950 border border-stone-800">
+                  <div>
+                    <div className="text-[11px] uppercase tracking-wider font-bold text-stone-500">
+                      Bot Username Terdeteksi
+                    </div>
+                    <div className="text-sm font-mono text-cyan-400 mt-0.5">
+                      {botUsername ? `@${botUsername.replace(/^@/, '')}` : 'Belum terdeteksi'}
+                    </div>
                   </div>
-                )}
-                
-                <div className="flex justify-end pt-2">
                   <button
-                    type="submit"
-                    disabled={saving}
-                    className="px-6 py-2.5 bg-cyan-500 hover:bg-cyan-400 text-stone-950 font-bold rounded-xl flex items-center gap-2 transition-colors disabled:opacity-50 text-xs shadow-md"
+                    type="button"
+                    onClick={handleVerifyBotServer}
+                    disabled={testingBot}
+                    className="px-4 py-2.5 bg-stone-800 hover:bg-stone-700 text-cyan-400 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
                   >
-                    {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                    Simpan Konfigurasi
+                    {testingBot ? <Loader2 className="w-4 h-4 animate-spin" /> : <Radio className="w-4 h-4" />}
+                    <span>Uji Koneksi Bot (via Server)</span>
                   </button>
                 </div>
-              </form>
+
+                {feedback && (
+                  <div
+                    className={`p-3.5 rounded-2xl text-xs flex items-center gap-2 ${
+                      feedback.success
+                        ? 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/20'
+                        : 'bg-rose-500/10 text-rose-300 border border-rose-500/20'
+                    }`}
+                  >
+                    {feedback.success ? (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                    ) : (
+                      <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                    )}
+                    <span>{feedback.text}</span>
+                  </div>
+                )}
+              </div>
             )}
           </div>
 
           {/* BROADCAST CARD */}
           <div className="bg-stone-900 border border-stone-800 rounded-3xl p-6 shadow-sm">
             <h3 className="text-base font-bold text-stone-100 mb-2 flex items-center gap-2">
-              <MessageSquare className="w-5 h-5 text-rose-400" /> 
+              <MessageSquare className="w-5 h-5 text-rose-400" />
               <span>Kirim Pengumuman (Broadcast Telegram)</span>
             </h3>
             <p className="text-xs text-stone-400 mb-4">
-              Kirimkan pengumuman penting, info fitur baru, atau peringatan sistem ke seluruh pengguna yang telah menghubungkan Telegram.
+              Kirimkan pengumuman penting, info fitur baru, atau peringatan sistem ke seluruh pengguna yang telah
+              menghubungkan Telegram.
             </p>
             <form onSubmit={handleBroadcast}>
               <textarea
@@ -244,16 +228,15 @@ export const AdminTelegram: React.FC = () => {
               <div className="mt-3 flex justify-end">
                 <button
                   type="submit"
-                  disabled={broadcasting || !botToken}
+                  disabled={broadcasting || !configured}
                   className="px-6 py-2.5 bg-rose-500 hover:bg-rose-400 text-stone-950 font-bold rounded-xl flex items-center gap-2 transition-colors disabled:opacity-50 text-xs shadow-md"
                 >
-                  {broadcasting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} 
+                  {broadcasting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                   Kirim Broadcast
                 </button>
               </div>
             </form>
           </div>
-
         </div>
 
         {/* SIDEBAR INFO & WEBHOOK */}
@@ -263,23 +246,18 @@ export const AdminTelegram: React.FC = () => {
               <Send className="w-7 h-7 ml-[-2px]" />
             </div>
             <h3 className="text-base font-bold text-stone-100">Status Bot</h3>
-            
-            {botToken ? (
-              <div className="mt-2 space-y-1">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                  <CheckCircle2 className="w-3.5 h-3.5" />
-                  Terkonfigurasi
-                </span>
+
+            {configured ? (
+              <div className="mt-2 space-y-2 flex flex-col items-center">
+                <PluConnectedBadge connected={true} size="sm" labelConnected="CONNECTED" />
                 {botUsername && (
-                  <p className="text-xs text-cyan-400 font-mono pt-1">
-                    @{botUsername}
-                  </p>
+                  <p className="text-xs text-cyan-400 font-mono pt-1">@{botUsername.replace(/^@/, '')}</p>
                 )}
               </div>
             ) : (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-rose-500/10 text-rose-400 border border-rose-500/20 mt-2">
-                Belum Terkonfigurasi
-              </span>
+              <div className="mt-2 flex justify-center">
+                <PluConnectedBadge connected={false} configured={false} size="sm" labelUnconfigured="Belum Terkonfigurasi" />
+              </div>
             )}
 
             <div className="mt-5 pt-4 border-t border-stone-800 text-left text-xs text-stone-400 space-y-2">

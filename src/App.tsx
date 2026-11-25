@@ -34,64 +34,75 @@ import { AdminContent } from './pages/admin/AdminContent';
 import { AdminPosts } from './pages/admin/AdminPosts';
 import { AdminFAQs } from './pages/admin/AdminFAQs';
 import { AdminCoupons } from './pages/admin/AdminCoupons';
+import { AdminEmailCenter } from './pages/admin/AdminEmailCenter';
+import { AdminErrorMonitor } from './pages/admin/AdminErrorMonitor';
+import { AdminMaintenance } from './pages/admin/AdminMaintenance';
+import { AdminPayloadCMS } from './pages/admin/AdminPayloadCMS';
 import { MetaPixel } from './components/MetaPixel';
+import { MaintenanceGate } from './components/MaintenanceGate';
 
 
 export default function App() {
   return (
     <BrowserRouter>
       <MetaPixel />
-      <Routes>
-        {/* Public Landing Pages */}
-        <Route path="/" element={<Home />} />
-        <Route path="/pricing" element={<Pricing />} />
-        <Route path="/landing/pro" element={<ProLanding />} />
-        <Route path="/features" element={<Features />} />
-        <Route path="/about" element={<About />} />
-        <Route path="/faq" element={<FAQ />} />
-        <Route path="/blog" element={<Blog />} />
-        <Route path="/contact" element={<Contact />} />
-        
-        {/* Auth & Checkout Pages */}
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/checkout" element={<Checkout />} />
-        <Route path="/forgot-password" element={<ForgotPassword />} />
-        <Route path="/verify-email/:token" element={<VerifyEmail />} />
-        
-        {/* Legal Pages */}
-        <Route path="/legal/privacy" element={<Privacy />} />
-        <Route path="/legal/terms" element={<Terms />} />
+      <MaintenanceGate>
+        <Routes>
+          {/* Public Landing Pages */}
+          <Route path="/" element={<Home />} />
+          <Route path="/pricing" element={<Pricing />} />
+          <Route path="/landing/pro" element={<ProLanding />} />
+          <Route path="/features" element={<Features />} />
+          <Route path="/about" element={<About />} />
+          <Route path="/faq" element={<FAQ />} />
+          <Route path="/blog" element={<Blog />} />
+          <Route path="/contact" element={<Contact />} />
+          
+          {/* Auth & Checkout Pages */}
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/checkout" element={<Checkout />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/verify-email/:token" element={<VerifyEmail />} />
+          
+          {/* Legal Pages */}
+          <Route path="/legal/privacy" element={<Privacy />} />
+          <Route path="/legal/terms" element={<Terms />} />
 
-        {/* Dashboard Application */}
-        <Route path="/app/*" element={<ProtectedRoute />}>
-          <Route path="*" element={<DashboardApp />} />
-        </Route>
-        
-        
-        {/* Admin Routes */}
-        <Route path="/admin/login" element={<AdminLogin />} />
-        <Route path="/admin" element={<AdminLayout />}>
-          <Route index element={<Navigate to="/admin/dashboard" replace />} />
-          <Route path="dashboard" element={<AdminDashboard />} />
-          <Route path="ai-settings" element={<AdminAiSettings />} />
-          <Route path="users" element={<AdminUsers />} />
-          <Route path="transactions" element={<AdminTransactions />} />
-          <Route path="subscriptions" element={<AdminSubscriptions />} />
-          <Route path="payments" element={<AdminPayments />} />
-          <Route path="telegram" element={<AdminTelegram />} />
-          <Route path="marketing" element={<AdminMarketing />} />
-          <Route path="settings" element={<AdminSettings />} />
-          <Route path="install" element={<AdminInstall />} />
-          <Route path="content" element={<AdminContent />} />
-          <Route path="posts" element={<AdminPosts />} />
-          <Route path="faqs" element={<AdminFAQs />} />
-          <Route path="coupons" element={<AdminCoupons />} />
-        </Route>
+          {/* Dashboard Application */}
+          <Route path="/app/*" element={<ProtectedRoute />}>
+            <Route path="*" element={<DashboardApp />} />
+          </Route>
+          
+          
+          {/* Admin Routes */}
+          <Route path="/admin/login" element={<AdminLogin />} />
+          <Route path="/admin" element={<AdminLayout />}>
+            <Route index element={<Navigate to="/admin/dashboard" replace />} />
+            <Route path="dashboard" element={<AdminDashboard />} />
+            <Route path="ai-settings" element={<AdminAiSettings />} />
+            <Route path="users" element={<AdminUsers />} />
+            <Route path="transactions" element={<AdminTransactions />} />
+            <Route path="subscriptions" element={<AdminSubscriptions />} />
+            <Route path="payments" element={<AdminPayments />} />
+            <Route path="telegram" element={<AdminTelegram />} />
+            <Route path="email" element={<AdminEmailCenter />} />
+            <Route path="error-monitor" element={<AdminErrorMonitor />} />
+            <Route path="maintenance" element={<AdminMaintenance />} />
+            <Route path="marketing" element={<AdminMarketing />} />
+            <Route path="settings" element={<AdminSettings />} />
+            <Route path="install" element={<AdminInstall />} />
+            <Route path="content" element={<AdminContent />} />
+            <Route path="posts" element={<AdminPosts />} />
+            <Route path="faqs" element={<AdminFAQs />} />
+            <Route path="coupons" element={<AdminCoupons />} />
+            <Route path="cms" element={<AdminPayloadCMS />} />
+          </Route>
 
-        {/* Fallback */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+          {/* Fallback */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </MaintenanceGate>
     </BrowserRouter>
   );
 }

@@ -39,7 +39,10 @@ export interface PaymentRecord {
   originalAmount: number;
   discount: number;
   method: string;
-  status: 'paid' | 'pending' | 'free_trial';
+  status: 'paid' | 'pending' | 'free_trial' | 'compensation';
+  isCompensation?: boolean;
+  bonusDays?: number;
+  reason?: string;
   userEmail: string;
   userName: string;
 }
@@ -505,3 +508,70 @@ export const getRemainingTimeDisplay = (expiresAtISO: string): {
     };
   }
 };
+
+export interface ServerSubscriptionSyncResult {
+  subscription: UserSubscription | null;
+  invoices: PaymentRecord[];
+  compensationNotice: {
+    id: string;
+    bonusDays: number;
+    reason: string;
+    newExpiresAt: string;
+    createdAt: string;
+  } | null;
+}
+
+export const syncUserSubscriptionFromServer = async (email?: string): Promise<ServerSubscriptionSyncResult | null> => {
+  try {
+    const profile = getUserProfile();
+    const targetEmail = (email || profile.email || localStorage.getItem('auraledger_user_id') || '').trim().toLowerCase();
+    if (!targetEmail || !targetEmail.includes('@')) return null;
+
+    const res = await fetch(`/api/user/subscription-status?email=${encodeURIComponent(targetEmail)}`);
+    const data = await res.json();
+    if (!data.success) return null;
+
+    if (data.subscription) {
+      const serverSub: UserSubscription = {
+        ...data.subscription,
+        status: new Date(data.subscription.expiresAt).getTime() < Date.now() ? 'expired' : 'active',
+      };
+      localStorage.setItem('auraledger_subscription', JSON.stringify(serverSub));
+      const updatedProfile: UserProfile = {
+        ...profile,
+        email: targetEmail,
+        subscription: serverSub,
+      };
+      localStorage.setItem('auraledger_user_profile', JSON.stringify(updatedProfile));
+    }
+
+    if (Array.isArray(data.invoices) && data.invoices.length > 0) {
+      const existingHistory = getPaymentHistory();
+      const serverInvoices: PaymentRecord[] = data.invoices;
+      const mergedMap = new Map<string, PaymentRecord>();
+
+      serverInvoices.forEach((inv) => {
+        mergedMap.set(inv.invoiceId || inv.id, inv);
+      });
+      existingHistory.forEach((item) => {
+        const key = item.invoiceId || item.id;
+        if (!mergedMap.has(key)) {
+          mergedMap.set(key, item);
+        }
+      });
+
+      const mergedList = Array.from(mergedMap.values());
+      localStorage.setItem('auraledger_payment_history', JSON.stringify(mergedList.slice(0, 50)));
+    }
+
+    return {
+      subscription: data.subscription || null,
+      invoices: data.invoices || [],
+      compensationNotice: data.compensationNotice || null,
+    };
+  } catch (err) {
+    console.error('Failed to sync subscription from server', err);
+    return null;
+  }
+};
+

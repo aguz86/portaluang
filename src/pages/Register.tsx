@@ -13,9 +13,13 @@ import {
   ArrowRight,
   Zap,
   CheckCircle2,
-  ChevronDown
+  ChevronDown,
+  Mail,
+  Loader2,
+  KeyRound
 } from "lucide-react";
 import { LandingLayout } from "../components/LandingLayout";
+import { useGlobalSettings } from "../hooks/useGlobalSettings";
 import { 
   SUBSCRIPTION_PLANS, 
   SubscriptionPlanId, 
@@ -26,6 +30,7 @@ import {
 export default function Register() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { settings } = useGlobalSettings();
   
   const formSectionRef = useRef<HTMLDivElement>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
@@ -41,6 +46,20 @@ export default function Register() {
   const [selectedPlanId, setSelectedPlanId] = useState<SubscriptionPlanId>(defaultPlan);
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+
+  // OTP Verification State
+  const [otpModalOpen, setOtpModalOpen] = useState(false);
+  const [otpCode, setOtpCode] = useState("");
+  const [otpLoading, setOtpLoading] = useState(false);
+  const [otpError, setOtpError] = useState("");
+  const [otpInfo, setOtpInfo] = useState("");
+  const [resendCooldown, setResendCooldown] = useState(0);
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const timer = setTimeout(() => setResendCooldown((prev) => prev - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [resendCooldown]);
 
   // Check if current typed email already claimed trial
   const isTrialUsedForEmail = email.trim().length > 5 && hasUserUsedTrial(email);
@@ -102,7 +121,92 @@ export default function Register() {
 
   const selectedPlan = SUBSCRIPTION_PLANS.find(p => p.id === selectedPlanId) || SUBSCRIPTION_PLANS[0];
 
-  const handleRegister = (e: React.FormEvent) => {
+  const completeRegistration = () => {
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanName = name.trim();
+    saveUserRegistration(cleanName, cleanEmail, selectedPlanId, city.trim());
+
+    fetch('/api/notify/signup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: cleanEmail,
+        name: cleanName,
+        planName: selectedPlan.name
+      })
+    }).catch(() => {});
+
+    navigate(`/checkout?plan=${selectedPlanId}`);
+  };
+
+  const requestRegisterOtp = async () => {
+    setOtpLoading(true);
+    setOtpError("");
+    setOtpInfo("");
+    try {
+      const res = await fetch('/api/auth/send-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: email.trim().toLowerCase(),
+          name: name.trim(),
+          purpose: 'register'
+        })
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        if (data.notConfigured) {
+          completeRegistration();
+          return;
+        }
+        setOtpError(data.error || "Gagal mengirim kode OTP ke email.");
+        setOtpModalOpen(true);
+      } else {
+        setOtpInfo(data.message || `Kode OTP 6 digit telah dikirim ke ${email.trim().toLowerCase()}`);
+        setResendCooldown(30);
+        setOtpModalOpen(true);
+      }
+    } catch (err) {
+      setOtpError("Gagal terhubung ke server untuk mengirim OTP.");
+      setOtpModalOpen(true);
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (otpCode.trim().length !== 6) {
+      setOtpError("Masukkan 6 digit kode OTP.");
+      return;
+    }
+    setOtpLoading(true);
+    setOtpError("");
+    try {
+      const res = await fetch('/api/auth/verify-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: email.trim().toLowerCase(),
+          otp: otpCode.trim(),
+          purpose: 'register'
+        })
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setOtpError(data.error || "Kode OTP salah atau sudah kadaluarsa.");
+      } else {
+        setOtpModalOpen(false);
+        completeRegistration();
+      }
+    } catch (err) {
+      setOtpError("Gagal memverifikasi kode OTP.");
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!name.trim()) {
@@ -135,12 +239,14 @@ export default function Register() {
       setError("Wajib memilih salah satu paket berlangganan untuk melanjutkan");
       return;
     }
-    
-    // Save user registration and plan duration with exact expiration timestamp
-    saveUserRegistration(name.trim(), email.trim().toLowerCase(), selectedPlanId, city.trim());
 
-    // Redirect to checkout page with locked selected plan
-    navigate(`/checkout?plan=${selectedPlanId}`);
+    setError("");
+    if (settings.emailConfigured && settings.emailOtpEnabled !== false) {
+      await requestRegisterOtp();
+      return;
+    }
+
+    completeRegistration();
   };
 
   return (
@@ -402,19 +508,28 @@ export default function Register() {
               <div className="pt-4">
                 <button 
                   type="submit" 
-                  disabled={!isPasswordValid || !name.trim() || !email.trim()}
+                  disabled={!isPasswordValid || !name.trim() || !email.trim() || otpLoading}
                   className={`w-full py-4 font-black rounded-xl text-base sm:text-lg flex items-center justify-center gap-2 transition-all shadow-xl ${
-                    !isPasswordValid || !name.trim() || !email.trim()
+                    !isPasswordValid || !name.trim() || !email.trim() || otpLoading
                       ? "bg-stone-800 text-stone-500 cursor-not-allowed border border-stone-700" 
                       : "bg-amber-500 hover:bg-amber-400 text-stone-950 hover:scale-[1.01] shadow-amber-500/25"
                   }`}
                 >
-                  <span>
-                    {selectedPlan.id === 'free_trial' 
-                      ? "Daftar & Lanjut ke Checkout (Free Trial Rp 0)" 
-                      : `Daftar & Lanjut ke Pembayaran (${selectedPlan.name})`}
-                  </span>
-                  <ArrowRight className="w-5 h-5" />
+                  {otpLoading ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      <span>Mengirim Kode OTP ke Email...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>
+                        {selectedPlan.id === 'free_trial' 
+                          ? "Daftar & Lanjut ke Checkout (Free Trial Rp 0)" 
+                          : `Daftar & Lanjut ke Pembayaran (${selectedPlan.name})`}
+                      </span>
+                      <ArrowRight className="w-5 h-5" />
+                    </>
+                  )}
                 </button>
               </div>
 
@@ -471,6 +586,85 @@ export default function Register() {
 
         </form>
       </div>
+
+      {/* Email OTP Verification Modal */}
+      {otpModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="bg-stone-900 border-2 border-amber-500/40 rounded-3xl w-full max-w-md p-6 sm:p-8 shadow-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                  <KeyRound className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-white">Verifikasi Email OTP</h3>
+                  <p className="text-xs text-stone-400">Keamanan pendaftaran akun</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setOtpModalOpen(false)}
+                className="p-1.5 rounded-lg text-stone-400 hover:text-white hover:bg-stone-800"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {otpInfo && (
+              <div className="mb-4 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs flex items-start gap-2">
+                <Mail className="w-4 h-4 shrink-0 mt-0.5 text-emerald-400" />
+                <span>{otpInfo}</span>
+              </div>
+            )}
+
+            {otpError && (
+              <div className="mb-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-start gap-2">
+                <X className="w-4 h-4 shrink-0 mt-0.5 text-rose-400" />
+                <span>{otpError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleVerifyOtp} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-stone-300 mb-2">
+                  Masukkan 6 Digit Kode OTP
+                </label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
+                  autoFocus
+                  value={otpCode}
+                  onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
+                  placeholder="••••••"
+                  className="w-full bg-stone-950 border-2 border-stone-800 focus:border-amber-500 rounded-xl px-4 py-3.5 text-white font-mono text-2xl text-center tracking-[0.45em] outline-none"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={otpLoading || otpCode.length !== 6}
+                className="w-full py-3.5 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-stone-950 font-black rounded-xl text-sm flex items-center justify-center gap-2 transition-colors"
+              >
+                {otpLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                <span>Verifikasi & Lanjutkan</span>
+              </button>
+            </form>
+
+            <div className="mt-4 flex items-center justify-between text-xs text-stone-400">
+              <span>Tidak menerima email? Cek folder Spam.</span>
+              <button
+                type="button"
+                disabled={resendCooldown > 0 || otpLoading}
+                onClick={requestRegisterOtp}
+                className="text-amber-400 hover:text-amber-300 font-bold disabled:text-stone-600"
+              >
+                {resendCooldown > 0 ? `Kirim Ulang (${resendCooldown}s)` : 'Kirim Ulang OTP'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </LandingLayout>
   );
 }

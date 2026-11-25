@@ -2,17 +2,26 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation, Outlet, useNavigate, Navigate } from 'react-router-dom';
 import { FaWhatsapp, FaTiktok, FaThreads, FaInstagram, FaYoutube, FaFacebook } from 'react-icons/fa6';
 import { useGlobalSettings } from '../../hooks/useGlobalSettings';
-import { Ticket, FileEdit, LayoutDashboard, FileText, HelpCircle, 
-  Users, 
-  ReceiptText, 
-  CreditCard, 
-  Settings, 
+import {
+  Ticket,
+  FileEdit,
+  LayoutDashboard,
+  FileText,
+  HelpCircle,
+  Users,
+  ReceiptText,
+  CreditCard,
+  Settings,
   Download,
   LogOut,
   Send,
   PackageSearch,
   Megaphone,
-  Bot
+  Bot,
+  Mail,
+  ShieldAlert,
+  Wrench,
+  Layers,
 } from 'lucide-react';
 
 const ADMIN_NAV = [
@@ -24,10 +33,14 @@ const ADMIN_NAV = [
   { path: '/admin/coupons', label: 'Kupon Diskon', icon: <Ticket className="w-5 h-5" /> },
   { path: '/admin/payments', label: 'Pembayaran (Duitku)', icon: <CreditCard className="w-5 h-5" /> },
   { path: '/admin/telegram', label: 'Telegram Bot', icon: <Send className="w-5 h-5" /> },
-  { path: '/admin/marketing', label: 'Pemasaran & Email', icon: <Megaphone className="w-5 h-5" /> },
+  { path: '/admin/email', label: 'Email & Broadcast', icon: <Mail className="w-5 h-5" /> },
+  { path: '/admin/error-monitor', label: 'Monitor Error', icon: <ShieldAlert className="w-5 h-5" /> },
+  { path: '/admin/maintenance', label: 'Maintenance & Kompensasi', icon: <Wrench className="w-5 h-5" /> },
+  { path: '/admin/marketing', label: 'Marketing & Promo', icon: <Megaphone className="w-5 h-5" /> },
   { path: '/admin/posts', label: 'Artikel Blog', icon: <FileText className="w-5 h-5" /> },
   { path: '/admin/faqs', label: 'Manajemen FAQ', icon: <HelpCircle className="w-5 h-5" /> },
-  { path: '/admin/content', label: 'Halaman Statis', icon: <FileEdit className="w-5 h-5" /> },
+  { path: '/admin/content', label: 'Halaman & Panduan', icon: <FileEdit className="w-5 h-5" /> },
+  { path: '/admin/cms', label: 'Payload CMS', icon: <Layers className="w-5 h-5" /> },
   { path: '/admin/settings', label: 'Pengaturan Sistem', icon: <Settings className="w-5 h-5" /> },
   { path: '/admin/install', label: 'Installer', icon: <Download className="w-5 h-5" /> },
 ];
@@ -37,11 +50,11 @@ export const AdminLayout: React.FC = () => {
   const navigate = useNavigate();
   const { settings } = useGlobalSettings();
   const [socials, setSocials] = useState<any>({});
-  
+
   useEffect(() => {
     fetch('/api/public-settings')
-      .then(res => res.json())
-      .then(data => {
+      .then((res) => res.json())
+      .then((data) => {
         if (data.success && data.socials) {
           setSocials(data.socials);
         }
@@ -49,7 +62,6 @@ export const AdminLayout: React.FC = () => {
       .catch(console.error);
   }, []);
 
-  // Basic auth check
   if (!localStorage.getItem('admin_token')) {
     return <Navigate to="/admin/login" replace />;
   }
@@ -66,13 +78,14 @@ export const AdminLayout: React.FC = () => {
         <div className="h-16 flex items-center px-6 border-b border-stone-800">
           <div className="flex items-center gap-2 group">
             <div className="w-8 h-8 rounded-lg bg-rose-500 text-stone-950 flex items-center justify-center font-bold text-sm shadow-lg shadow-rose-500/20">
-              {'PU'}</div>
+              {'PU'}
+            </div>
             <span className="font-extrabold text-lg tracking-tight text-stone-100">
               Admin<span className="text-rose-500">Panel</span>
             </span>
           </div>
         </div>
-        
+
         <div className="flex-1 overflow-y-auto py-6 px-4 space-y-1 custom-scrollbar">
           {ADMIN_NAV.map((item) => (
             <Link
@@ -105,9 +118,9 @@ export const AdminLayout: React.FC = () => {
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         {/* Mobile Header */}
         <header className="h-16 border-b border-stone-800 bg-stone-900 flex items-center px-4 md:hidden">
-           <span className="font-extrabold text-lg tracking-tight text-stone-100">
-              Admin<span className="text-rose-500">Panel</span>
-            </span>
+          <span className="font-extrabold text-lg tracking-tight text-stone-100">
+            Admin<span className="text-rose-500">Panel</span>
+          </span>
         </header>
 
         {/* Scrollable Content */}
@@ -124,32 +137,68 @@ export const AdminLayout: React.FC = () => {
                 </div>
                 <div className="flex items-center gap-4">
                   {socials.whatsapp && (
-                    <a href={socials.whatsapp} target="_blank" rel="noopener noreferrer" className="text-stone-400 hover:text-[#25D366] transition-colors" aria-label="WhatsApp">
+                    <a
+                      href={socials.whatsapp}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-stone-400 hover:text-[#25D366] transition-colors"
+                      aria-label="WhatsApp"
+                    >
                       <FaWhatsapp className="w-4 h-4" />
                     </a>
                   )}
                   {socials.tiktok && (
-                    <a href={socials.tiktok} target="_blank" rel="noopener noreferrer" className="text-stone-400 hover:text-white transition-colors" aria-label="TikTok">
+                    <a
+                      href={socials.tiktok}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-stone-400 hover:text-white transition-colors"
+                      aria-label="TikTok"
+                    >
                       <FaTiktok className="w-4 h-4" />
                     </a>
                   )}
                   {socials.threads && (
-                    <a href={socials.threads} target="_blank" rel="noopener noreferrer" className="text-stone-400 hover:text-white transition-colors" aria-label="Threads">
+                    <a
+                      href={socials.threads}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-stone-400 hover:text-white transition-colors"
+                      aria-label="Threads"
+                    >
                       <FaThreads className="w-4 h-4" />
                     </a>
                   )}
                   {socials.instagram && (
-                    <a href={socials.instagram} target="_blank" rel="noopener noreferrer" className="text-stone-400 hover:text-[#E1306C] transition-colors" aria-label="Instagram">
+                    <a
+                      href={socials.instagram}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-stone-400 hover:text-[#E1306C] transition-colors"
+                      aria-label="Instagram"
+                    >
                       <FaInstagram className="w-4 h-4" />
                     </a>
                   )}
                   {socials.youtube && (
-                    <a href={socials.youtube} target="_blank" rel="noopener noreferrer" className="text-stone-400 hover:text-[#FF0000] transition-colors" aria-label="YouTube">
+                    <a
+                      href={socials.youtube}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-stone-400 hover:text-[#FF0000] transition-colors"
+                      aria-label="YouTube"
+                    >
                       <FaYoutube className="w-4 h-4" />
                     </a>
                   )}
                   {socials.facebook && (
-                    <a href={socials.facebook} target="_blank" rel="noopener noreferrer" className="text-stone-400 hover:text-[#1877F2] transition-colors" aria-label="Facebook">
+                    <a
+                      href={socials.facebook}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-stone-400 hover:text-[#1877F2] transition-colors"
+                      aria-label="Facebook"
+                    >
                       <FaFacebook className="w-4 h-4" />
                     </a>
                   )}
@@ -157,7 +206,9 @@ export const AdminLayout: React.FC = () => {
               </div>
               <div className="w-full h-px bg-stone-800/50"></div>
               <div className="w-full flex justify-between items-center text-stone-600">
-                <span>&copy; {new Date().getFullYear()} {settings.appName}.</span>
+                <span>
+                  &copy; {new Date().getFullYear()} {settings.appName}.
+                </span>
                 <span>Version {settings.appVersion}</span>
               </div>
             </div>

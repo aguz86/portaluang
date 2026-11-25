@@ -12,6 +12,8 @@ export interface GlobalSettings {
   heroTitle2Prefix?: string;
   heroSubtitle?: string;
   heroFont?: string;
+  emailConfigured?: boolean;
+  emailOtpEnabled?: boolean;
 }
 
 const DEFAULT_SETTINGS: GlobalSettings = {
@@ -57,7 +59,9 @@ export const useGlobalSettings = () => {
           heroTitle1: data.heroTitle1 || DEFAULT_SETTINGS.heroTitle1,
           heroTitle2Prefix: data.heroTitle2Prefix || DEFAULT_SETTINGS.heroTitle2Prefix,
           heroSubtitle: data.heroSubtitle || DEFAULT_SETTINGS.heroSubtitle,
-          heroFont: data.heroFont || DEFAULT_SETTINGS.heroFont
+          heroFont: data.heroFont || DEFAULT_SETTINGS.heroFont,
+          emailConfigured: Boolean(data.emailConfigured),
+          emailOtpEnabled: data.emailOtpEnabled !== false
         };
         
         // Only update if changed

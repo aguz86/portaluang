@@ -29,52 +29,54 @@ export interface DuitkuTransaction {
   createdAt: string;
   paidAt?: string;
   duitkuResponse?: any;
-  env?: 'sandbox' | 'production';
+  env?: 'sandbox' | 'production' | 'compensation';
+  isCompensation?: boolean;
+  bonusDays?: number;
+  reason?: string;
+  newExpiresAt?: string;
 }
 
-// Default fallback configuration for Sandbox Testing
-const DEFAULT_CONFIG: DuitkuConfig = {
-  merchantCode: process.env.DUITKU_MERCHANT_CODE || 'D9821_AURA',
-  apiKey: process.env.DUITKU_API_KEY || '8f3e2b1a9c4d7e6f5a0b1c2d3e4f5a6b',
-  env: (process.env.DUITKU_ENV as 'sandbox' | 'production') || 'sandbox',
-};
-
 export async function getDuitkuConfig(pool: any): Promise<DuitkuConfig> {
+  let env: 'sandbox' | 'production' = (process.env.DUITKU_ENV as 'sandbox' | 'production') || 'sandbox';
+  let sandboxWhitelist: string[] = [];
+
   try {
     const result = await pool.query('SELECT data FROM app_state WHERE id = $1', ['global_settings']);
     if (result.rows.length > 0 && result.rows[0].data) {
       const data = result.rows[0].data;
-      const env = (process.env.DUITKU_ENV as 'sandbox' | 'production') || data.duitkuEnv || DEFAULT_CONFIG.env;
-      
-      let merchantCode = env === 'production' 
-        ? (data.duitkuProductionMerchantCode || data.duitkuMerchantCode || '') 
-        : (data.duitkuSandboxMerchantCode || data.duitkuMerchantCode || DEFAULT_CONFIG.merchantCode);
-        
-      let apiKey = env === 'production' 
-        ? (data.duitkuProductionApiKey || data.duitkuApiKey || '') 
-        : (data.duitkuSandboxApiKey || data.duitkuApiKey || DEFAULT_CONFIG.apiKey);
-
-      apiKey = decrypt(apiKey);
-
-      let sandboxWhitelist: string[] = [];
+      if (!process.env.DUITKU_ENV && (data.duitkuEnv === 'production' || data.duitkuEnv === 'sandbox')) {
+        env = data.duitkuEnv;
+      }
       if (data.duitkuSandboxWhitelist) {
-        sandboxWhitelist = data.duitkuSandboxWhitelist
+        sandboxWhitelist = String(data.duitkuSandboxWhitelist)
           .split(',')
           .map((e: string) => e.trim().toLowerCase())
           .filter(Boolean);
       }
-
-      return {
-        merchantCode: process.env.DUITKU_MERCHANT_CODE || merchantCode,
-        apiKey: process.env.DUITKU_API_KEY || apiKey,
-        env,
-        sandboxWhitelist
-      };
     }
   } catch (err) {
-    console.error('Error loading Duitku settings from DB:', err);
+    console.error('Error loading Duitku non-secret settings from DB:', err);
   }
-  return DEFAULT_CONFIG;
+
+  // All Duitku credentials (merchantCode & apiKey) MUST come strictly from environment variables
+  const merchantCode = (
+    env === 'production'
+      ? (process.env.DUITKU_PRODUCTION_MERCHANT_CODE || process.env.DUITKU_MERCHANT_CODE || '')
+      : (process.env.DUITKU_SANDBOX_MERCHANT_CODE || process.env.DUITKU_MERCHANT_CODE || '')
+  ).trim();
+
+  const apiKey = (
+    env === 'production'
+      ? (process.env.DUITKU_PRODUCTION_API_KEY || process.env.DUITKU_API_KEY || '')
+      : (process.env.DUITKU_SANDBOX_API_KEY || process.env.DUITKU_API_KEY || '')
+  ).trim();
+
+  return {
+    merchantCode,
+    apiKey,
+    env,
+    sandboxWhitelist,
+  };
 }
 
 export function generateDuitkuInquirySignature(
@@ -144,8 +146,8 @@ export async function saveTransaction(pool: any, tx: DuitkuTransaction): Promise
     } else {
       current.unshift(tx);
     }
-    // Keep last 200 transactions
-    const trimmed = current.slice(0, 200);
+    // Keep last 2000 transactions (supports 1000+ user compensation batches)
+    const trimmed = current.slice(0, 2000);
     await pool.query(
       `INSERT INTO app_state (id, data, updated_at) VALUES ($1, $2, NOW()) 
        ON CONFLICT (id) DO UPDATE SET data = $2, updated_at = NOW()`,
@@ -153,6 +155,31 @@ export async function saveTransaction(pool: any, tx: DuitkuTransaction): Promise
     );
   } catch (err) {
     console.error('Error saving transaction:', err);
+  }
+}
+
+export async function saveTransactionsBatch(pool: any, txs: DuitkuTransaction[]): Promise<void> {
+  if (!Array.isArray(txs) || txs.length === 0) return;
+  try {
+    const current = await getAllTransactions(pool);
+    const map = new Map<string, DuitkuTransaction>();
+    for (const tx of txs) {
+      map.set(tx.merchantOrderId, tx);
+    }
+    const merged: DuitkuTransaction[] = [...txs];
+    for (const item of current) {
+      if (!map.has(item.merchantOrderId)) {
+        merged.push(item);
+      }
+    }
+    const trimmed = merged.slice(0, 2000);
+    await pool.query(
+      `INSERT INTO app_state (id, data, updated_at) VALUES ($1, $2, NOW()) 
+       ON CONFLICT (id) DO UPDATE SET data = $2, updated_at = NOW()`,
+      ['duitku_transactions', JSON.stringify(trimmed)]
+    );
+  } catch (err) {
+    console.error('Error batch saving transactions:', err);
   }
 }
 

@@ -1,34 +1,64 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { GUIDE_CHAPTERS, GuideTopic } from '../data/guideContent';
 import { ActiveTab } from '../types';
-import { 
-  BookOpen, 
-  Search, 
-  Clock, 
-  CheckCircle, 
-  ArrowRight, 
+import { SafeMarkdown } from './SafeMarkdown';
+import {
+  BookOpen,
+  Search,
+  Clock,
+  CheckCircle,
+  ArrowRight,
   Zap,
-  Download
+  Download,
 } from 'lucide-react';
+
+interface CmsGuideTopic extends GuideTopic {
+  markdownContent?: string;
+  actionRoute?: string;
+}
 
 interface GuideViewProps {
   setActiveTab: (tab: ActiveTab) => void;
   onLoadSampleData?: () => void;
 }
 
-export const GuideView: React.FC<GuideViewProps> = ({ setActiveTab, onLoadSampleData }) => {
+export const GuideView: React.FC<GuideViewProps> = ({ onLoadSampleData }) => {
   const navigate = useNavigate();
+  const [chapters, setChapters] = useState<CmsGuideTopic[]>(GUIDE_CHAPTERS);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeCategory, setActiveCategory] = useState<string>('SEMUA');
-  const [selectedChapter, setSelectedChapter] = useState<GuideTopic>(GUIDE_CHAPTERS[0]);
-  
+  const [selectedChapter, setSelectedChapter] = useState<CmsGuideTopic>(GUIDE_CHAPTERS[0]);
+
   const readerRef = useRef<HTMLDivElement>(null);
 
-  const categories = ['SEMUA', 'Dasar Keuangan', 'Anggaran Zero-Based', 'Tagihan & Arus Kas', 'Sinking Funds', 'Pelunasan Utang', 'Kekayaan Bersih', 'Privasi Lokal & AI'];
+  useEffect(() => {
+    fetch('/api/guides')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && Array.isArray(data.data) && data.data.length > 0) {
+          const sorted = [...data.data].sort(
+            (a: CmsGuideTopic, b: CmsGuideTopic) => Number(a.chapterNumber || 0) - Number(b.chapterNumber || 0)
+          );
+          setChapters(sorted);
+          setSelectedChapter(sorted[0]);
+        }
+      })
+      .catch(() => {
+        // Fallback smoothly to GUIDE_CHAPTERS
+      });
+  }, []);
 
-  const filteredChapters = GUIDE_CHAPTERS.filter((ch) => {
-    const matchesSearch = 
+  const categories = useMemo(() => {
+    const cats = new Set<string>(['SEMUA']);
+    chapters.forEach((ch) => {
+      if (ch.category) cats.add(ch.category);
+    });
+    return Array.from(cats);
+  }, [chapters]);
+
+  const filteredChapters = chapters.filter((ch) => {
+    const matchesSearch =
       ch.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       ch.summary.toLowerCase().includes(searchTerm.toLowerCase());
 
@@ -37,11 +67,23 @@ export const GuideView: React.FC<GuideViewProps> = ({ setActiveTab, onLoadSample
     return matchesSearch && matchesCat;
   });
 
-  const handleChapterClick = (ch: GuideTopic) => {
+  const handleChapterClick = (ch: CmsGuideTopic) => {
     setSelectedChapter(ch);
     setTimeout(() => {
       readerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 50);
+  };
+
+  const getTargetRoute = (ch: CmsGuideTopic): string => {
+    if (ch.actionRoute && ch.actionRoute.startsWith('/')) return ch.actionRoute;
+    if (ch.chapterNumber === 2) return '/app/budget';
+    if (ch.chapterNumber === 3) return '/app/goals';
+    if (ch.chapterNumber === 4) return '/app/accounts';
+    if (ch.chapterNumber === 5) return '/app/payday';
+    if (ch.chapterNumber === 6) return '/app/bills';
+    if (ch.chapterNumber === 7) return '/app/net-worth';
+    if (ch.chapterNumber === 8) return '/app/settings';
+    return '/app/dashboard';
   };
 
   return (
@@ -51,14 +93,14 @@ export const GuideView: React.FC<GuideViewProps> = ({ setActiveTab, onLoadSample
         <div>
           <div className="flex items-center gap-2 mb-1">
             <BookOpen className="w-5 h-5 text-amber-400" />
-            <h2 className="text-xl font-bold text-stone-100">Panduan & Strategi Pengelolaan Keuangan</h2>
+            <h2 className="text-xl font-bold text-stone-100">Panduan &amp; Strategi Pengelolaan Keuangan</h2>
           </div>
           <p className="text-xs text-stone-400 max-w-2xl">
             Panduan interaktif lengkap seputar penganggaran Zero-Based, matematika pelunasan utang metode Avalanche/Snowball, strategi Sinking Fund, serta keamanan data finansial.
           </p>
         </div>
         {onLoadSampleData && (
-          <button 
+          <button
             onClick={onLoadSampleData}
             className="px-4 py-2.5 bg-amber-500/10 text-amber-400 border border-amber-500/20 hover:bg-amber-500 hover:text-stone-950 transition-colors font-bold text-xs rounded-xl flex items-center gap-2 shrink-0 shadow-sm"
           >
@@ -72,7 +114,6 @@ export const GuideView: React.FC<GuideViewProps> = ({ setActiveTab, onLoadSample
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left 4 Cols: Search & Chapter List */}
         <div className="lg:col-span-4 space-y-4">
-          {/* Search & Category Filter */}
           <div className="bg-stone-900 border border-stone-800 p-4 rounded-2xl space-y-3">
             <div className="relative">
               <Search className="w-4 h-4 text-stone-500 absolute left-3 top-2.5" />
@@ -85,7 +126,6 @@ export const GuideView: React.FC<GuideViewProps> = ({ setActiveTab, onLoadSample
               />
             </div>
 
-            {/* Category Pills */}
             <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none text-[11px]">
               {categories.map((cat) => (
                 <button
@@ -103,7 +143,6 @@ export const GuideView: React.FC<GuideViewProps> = ({ setActiveTab, onLoadSample
             </div>
           </div>
 
-          {/* Chapter Cards List */}
           <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1">
             {filteredChapters.map((ch) => {
               const isSelected = selectedChapter.id === ch.id;
@@ -134,7 +173,6 @@ export const GuideView: React.FC<GuideViewProps> = ({ setActiveTab, onLoadSample
 
         {/* Right 8 Cols: Reader Content */}
         <div ref={readerRef} className="lg:col-span-8 bg-stone-900 border border-stone-800 p-6 rounded-2xl space-y-6 shadow-sm scroll-mt-6">
-          {/* Chapter Title Header */}
           <div className="border-b border-stone-800 pb-4">
             <div className="flex items-center gap-2 text-xs text-amber-400 font-mono font-bold uppercase mb-1">
               <span>Bab {selectedChapter.chapterNumber}</span>
@@ -143,33 +181,38 @@ export const GuideView: React.FC<GuideViewProps> = ({ setActiveTab, onLoadSample
             </div>
             <h1 className="text-2xl font-extrabold text-stone-100">{selectedChapter.title}</h1>
             <p className="text-sm text-stone-300 mt-2 italic bg-stone-950/60 border border-stone-800 p-3 rounded-xl">
-              "{selectedChapter.summary}"
+              &quot;{selectedChapter.summary}&quot;
             </p>
           </div>
 
-          {/* Paragraphs */}
-          <div className="space-y-4 text-stone-300 text-sm leading-relaxed">
-            {selectedChapter.content.map((p, idx) => (
-              <p key={idx}>{p}</p>
-            ))}
-          </div>
-
-          {/* Key Takeaways Box */}
-          <div className="bg-stone-950 border border-amber-500/30 p-5 rounded-xl space-y-3">
-            <h4 className="text-xs font-bold uppercase text-amber-400 flex items-center gap-1.5">
-              <Zap className="w-4 h-4" /> Poin Penting & Aturan Utama
-            </h4>
-            <ul className="space-y-2 text-xs text-stone-300">
-              {selectedChapter.keyTakeaways.map((takeaway, i) => (
-                <li key={i} className="flex items-start gap-2">
-                  <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-                  <span>{takeaway}</span>
-                </li>
+          {selectedChapter.markdownContent ? (
+            <div className="prose prose-invert prose-stone max-w-none prose-sm text-stone-300 leading-relaxed">
+              <SafeMarkdown>{selectedChapter.markdownContent}</SafeMarkdown>
+            </div>
+          ) : (
+            <div className="space-y-4 text-stone-300 text-sm leading-relaxed">
+              {selectedChapter.content.map((p, idx) => (
+                <p key={idx}>{p}</p>
               ))}
-            </ul>
-          </div>
+            </div>
+          )}
 
-          {/* Actionable Step & Navigation Shortcut */}
+          {selectedChapter.keyTakeaways && selectedChapter.keyTakeaways.length > 0 && (
+            <div className="bg-stone-950 border border-amber-500/30 p-5 rounded-xl space-y-3">
+              <h4 className="text-xs font-bold uppercase text-amber-400 flex items-center gap-1.5">
+                <Zap className="w-4 h-4" /> Poin Penting &amp; Aturan Utama
+              </h4>
+              <ul className="space-y-2 text-xs text-stone-300">
+                {selectedChapter.keyTakeaways.map((takeaway, i) => (
+                  <li key={i} className="flex items-start gap-2">
+                    <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                    <span>{takeaway}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           <div className="bg-stone-850 border border-stone-800 p-4 rounded-xl flex items-center justify-between gap-4 flex-wrap">
             <div>
               <span className="text-[10px] uppercase font-bold text-stone-400 block">Langkah Aksi Langsung</span>
@@ -177,17 +220,7 @@ export const GuideView: React.FC<GuideViewProps> = ({ setActiveTab, onLoadSample
             </div>
 
             <button
-              onClick={() => {
-                let target = '/app/dashboard';
-                if (selectedChapter.chapterNumber === 2) target = '/app/budget';
-                else if (selectedChapter.chapterNumber === 3) target = '/app/goals';
-                else if (selectedChapter.chapterNumber === 4) target = '/app/accounts';
-                else if (selectedChapter.chapterNumber === 5) target = '/app/payday';
-                else if (selectedChapter.chapterNumber === 6) target = '/app/bills';
-                else if (selectedChapter.chapterNumber === 7) target = '/app/net-worth';
-                else if (selectedChapter.chapterNumber === 8) target = '/app/settings';
-                navigate(target);
-              }}
+              onClick={() => navigate(getTargetRoute(selectedChapter))}
               className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-stone-950 text-xs font-bold flex items-center gap-1.5 transition-colors whitespace-nowrap"
             >
               <span>Buka Fitur Ini</span>
@@ -199,4 +232,3 @@ export const GuideView: React.FC<GuideViewProps> = ({ setActiveTab, onLoadSample
     </div>
   );
 };
-
