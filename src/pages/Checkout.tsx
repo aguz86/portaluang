@@ -59,7 +59,7 @@ export default function Checkout() {
     : (validPlanIds.includes(userProfile.subscription.planId) && (userProfile.subscription.planId !== 'free_trial' || isTrialAllowed) ? userProfile.subscription.planId : 'annual');
 
   const [selectedPlanId, setSelectedPlanId] = useState<SubscriptionPlanId>(initialPlanId);
-  const [paymentMethod, setPaymentMethod] = useState<string>('SP');
+  const [paymentMethod, setPaymentMethod] = useState<string>('');
   const [ewalletPhone, setEwalletPhone] = useState("");
   const [ewalletProvider, setEwalletProvider] = useState<'gopay' | 'ovo' | 'dana' | 'shopeepay'>('gopay');
   
@@ -131,23 +131,48 @@ export default function Checkout() {
 
   const [duitkuMethods, setDuitkuMethods] = useState<any[]>([]);
   const [methodsLoading, setMethodsLoading] = useState(true);
+  const [methodsError, setMethodsError] = useState<string>('');
+  const [invoiceError, setInvoiceError] = useState<string>('');
+  const [methodsReloadKey, setMethodsReloadKey] = useState(0);
 
-  // Fetch available methods on mount
+  // Fetch available methods on mount / amount change
   useEffect(() => {
+    if (isTrial) {
+      setMethodsLoading(false);
+      return;
+    }
     let isMounted = true;
+    setMethodsLoading(true);
+    setMethodsError('');
     fetch('/api/payment/duitku/methods?amount=' + (finalTotal || 10000))
       .then(res => res.json())
       .then(data => {
-        if (isMounted && data.success && data.methods) {
+        if (!isMounted) return;
+        if (data.success && Array.isArray(data.methods) && data.methods.length > 0) {
           setDuitkuMethods(data.methods);
+          setPaymentMethod(prev => {
+            if (prev && data.methods.some((m: any) => m.paymentMethod === prev)) {
+              return prev;
+            }
+            return data.methods[0].paymentMethod;
+          });
+        } else {
+          setDuitkuMethods([]);
+          setMethodsError(data.error || data.message || 'Metode pembayaran tidak tersedia saat ini.');
         }
       })
-      .catch(console.error)
+      .catch(err => {
+        console.error(err);
+        if (isMounted) {
+          setDuitkuMethods([]);
+          setMethodsError('Gagal terhubung ke server pembayaran.');
+        }
+      })
       .finally(() => {
         if (isMounted) setMethodsLoading(false);
       });
     return () => { isMounted = false; };
-  }, [finalTotal]);
+  }, [finalTotal, isTrial, methodsReloadKey]);
 
   const [invoiceLoading, setInvoiceLoading] = useState(false);
 
@@ -158,19 +183,23 @@ export default function Checkout() {
     return `INV-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}-${rand}`;
   });
 
-
-
   // Request Duitku Invoice from backend whenever plan or payment method changes
   useEffect(() => {
-    if (isTrial) {
+    if (isTrial || !paymentMethod || finalTotal <= 0) {
       setDuitkuInvoice(null);
+      setQrDataUrl('');
+      setInvoiceError('');
       return;
     }
 
     let isMounted = true;
     const createDuitkuInvoice = async () => {
       setInvoiceLoading(true);
+      setInvoiceError('');
+      setDuitkuInvoice(null);
+      setQrDataUrl('');
       try {
+        const selectedMethodObj = duitkuMethods.find((m: any) => m.paymentMethod === paymentMethod);
         const res = await fetch('/api/payment/duitku/create-invoice', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -179,6 +208,7 @@ export default function Checkout() {
             planName: selectedPlan.name,
             amount: finalTotal,
             paymentMethod: paymentMethod,
+            paymentMethodName: selectedMethodObj?.paymentName,
             email: userProfile.email || 'user@portaluang.id',
             customerName: userProfile.name || 'Pengguna Portal Uang',
             phoneNumber: ewalletPhone || '08123456789'
@@ -186,13 +216,14 @@ export default function Checkout() {
         });
 
         const data = await res.json();
-        if (isMounted && data.success) {
+        if (!isMounted) return;
+        if (data.success) {
           setDuitkuInvoice(data);
           if (data.merchantOrderId) {
             setInvoiceId(data.merchantOrderId);
           }
 
-          // If QR string received, generate high-res QR code data URL
+          // Only generate QR image when this specific invoice returned a qrString
           if (data.qrString) {
             const dataUrl = await QRCode.toDataURL(data.qrString, {
               width: 280,
@@ -200,10 +231,21 @@ export default function Checkout() {
               color: { dark: '#1c1917', light: '#ffffff' }
             });
             if (isMounted) setQrDataUrl(dataUrl);
+          } else {
+            setQrDataUrl('');
           }
+        } else {
+          setDuitkuInvoice(null);
+          setQrDataUrl('');
+          setInvoiceError(data.error || 'Gagal membuat tagihan pembayaran untuk metode ini.');
         }
       } catch (err) {
         console.error('Error creating Duitku invoice:', err);
+        if (isMounted) {
+          setDuitkuInvoice(null);
+          setQrDataUrl('');
+          setInvoiceError('Terjadi kesalahan jaringan saat membuat tagihan.');
+        }
       } finally {
         if (isMounted) setInvoiceLoading(false);
       }
@@ -214,17 +256,7 @@ export default function Checkout() {
     return () => {
       isMounted = false;
     };
-  }, [selectedPlanId, paymentMethod, finalTotal, isTrial]);
-
-  // Fallback QR code generator if live qrString not present yet
-  useEffect(() => {
-    if (paymentMethod === 'NQ' && !qrDataUrl) {
-      const defaultQrPayload = `00020101021226590014ID.LINKAJA.WWW01189360091800000000000215ID${invoiceId}520458125303360540${finalTotal}.005802ID5910AURALEDGER6007JAKARTA61051219062070703A016304`;
-      QRCode.toDataURL(defaultQrPayload, { width: 280, margin: 2 })
-        .then(url => setQrDataUrl(url))
-        .catch(() => {});
-    }
-  }, [paymentMethod, invoiceId, finalTotal, qrDataUrl]);
+  }, [selectedPlanId, paymentMethod, finalTotal, isTrial, duitkuMethods]);
 
   useEffect(() => {
     if (planParam && validPlanIds.includes(planParam)) {
@@ -835,36 +867,59 @@ export default function Checkout() {
                 
                 
                 <div className="space-y-6">
-                  {duitkuMethods && duitkuMethods.length > 0 ? (
+                  {methodsLoading ? (
+                    <div className="flex flex-col items-center justify-center py-10 bg-stone-900 border border-stone-800 rounded-2xl">
+                      <Loader2 className="w-8 h-8 text-amber-400 animate-spin mb-3" />
+                      <span className="text-xs text-stone-400">Memuat metode pembayaran...</span>
+                    </div>
+                  ) : duitkuMethods && duitkuMethods.length > 0 ? (
                     (() => {
-                      const instantMethods = duitkuMethods.filter((m: any) => ['SP', 'OV', 'DA', 'LQ', 'NQ', 'GP', 'AQ'].includes(m.paymentMethod));
-                      const vaMethods = duitkuMethods.filter((m: any) => ['BC', 'M2', 'BR', 'B1', 'NC', 'VA', 'B4', 'I1', 'M1', 'BT', 'S1', 'MB'].includes(m.paymentMethod));
-                      const retailMethods = duitkuMethods.filter((m: any) => ['A1', 'AL', 'FT', 'IR'].includes(m.paymentMethod));
-                      
+                      const instantCodes = ['SP', 'SA', 'OV', 'DA', 'LQ', 'NQ', 'GP', 'AQ', 'SQ', 'DQ', 'LA', 'SL', 'OL'];
+                      const vaCodes = ['BC', 'M2', 'BR', 'B1', 'NC', 'VA', 'B4', 'I1', 'M1', 'BT', 'S1', 'MB', 'A1', 'BV', 'AG'];
+                      const retailCodes = ['AL', 'FT', 'IR'];
+
+                      const instantMethods = duitkuMethods.filter((m: any) => instantCodes.includes(m.paymentMethod));
+                      const vaMethods = duitkuMethods.filter((m: any) => vaCodes.includes(m.paymentMethod));
+                      const retailMethods = duitkuMethods.filter((m: any) => retailCodes.includes(m.paymentMethod));
+                      const otherMethods = duitkuMethods.filter(
+                        (m: any) =>
+                          !instantCodes.includes(m.paymentMethod) &&
+                          !vaCodes.includes(m.paymentMethod) &&
+                          !retailCodes.includes(m.paymentMethod)
+                      );
+
+                      const renderMethodButton = (m: any) => (
+                        <button
+                          key={m.paymentMethod}
+                          type="button"
+                          onClick={() => setPaymentMethod(m.paymentMethod)}
+                          title={m.paymentName}
+                          className={`p-3 rounded-2xl border transition-all flex flex-col items-center justify-center gap-1.5 ${
+                            paymentMethod === m.paymentMethod
+                              ? 'bg-emerald-500/15 border-emerald-500 text-emerald-300 ring-2 ring-emerald-500/40'
+                              : 'bg-white border-stone-200 text-stone-800 hover:border-emerald-500 hover:shadow-sm'
+                          }`}
+                        >
+                          {m.paymentImage ? (
+                            <img src={m.paymentImage} alt={m.paymentName} className="h-6 object-contain" referrerPolicy="no-referrer" />
+                          ) : null}
+                          <span className={`text-[11px] font-bold leading-tight text-center ${paymentMethod === m.paymentMethod ? 'text-emerald-300' : 'text-stone-700'}`}>
+                            {m.paymentName}
+                          </span>
+                        </button>
+                      );
+
                       return (
                         <>
                           {/* Instant Payment Section */}
                           {instantMethods.length > 0 && (
                             <div className="space-y-3">
                               <div className="text-xs font-bold text-stone-400 uppercase tracking-wider flex items-center justify-between">
-                                <span>Instant Payment</span>
+                                <span>QRIS & E-Wallet</span>
                                 <Zap className="w-3.5 h-3.5 text-emerald-400" />
                               </div>
                               <div className="grid grid-cols-2 gap-3">
-                                {instantMethods.map((m: any) => (
-                                  <button
-                                    key={m.paymentMethod}
-                                    type="button"
-                                    onClick={() => setPaymentMethod(m.paymentMethod)}
-                                    className={`p-3 rounded-2xl border transition-all flex items-center justify-center gap-2 ${
-                                      paymentMethod === m.paymentMethod
-                                        ? 'bg-emerald-500/10 border-emerald-500 text-emerald-300 ring-1 ring-emerald-500/40'
-                                        : 'bg-white border-stone-200 text-stone-800 hover:border-emerald-500 hover:shadow-sm'
-                                    }`}
-                                  >
-                                    <img src={m.paymentImage} alt={m.paymentName} className="h-6 object-contain" referrerPolicy="no-referrer" />
-                                  </button>
-                                ))}
+                                {instantMethods.map(renderMethodButton)}
                               </div>
                             </div>
                           )}
@@ -877,46 +932,20 @@ export default function Checkout() {
                                 <Building2 className="w-3.5 h-3.5 text-stone-500" />
                               </div>
                               <div className="grid grid-cols-2 gap-3">
-                                {vaMethods.map((m: any) => (
-                                  <button
-                                    key={m.paymentMethod}
-                                    type="button"
-                                    onClick={() => setPaymentMethod(m.paymentMethod)}
-                                    className={`p-3 rounded-2xl border transition-all flex items-center justify-center gap-2 ${
-                                      paymentMethod === m.paymentMethod
-                                        ? 'bg-emerald-500/10 border-emerald-500 text-emerald-300 ring-1 ring-emerald-500/40'
-                                        : 'bg-white border-stone-200 text-stone-800 hover:border-emerald-500 hover:shadow-sm'
-                                    }`}
-                                  >
-                                    <img src={m.paymentImage} alt={m.paymentName} className="h-6 object-contain" referrerPolicy="no-referrer" />
-                                  </button>
-                                ))}
+                                {vaMethods.map(renderMethodButton)}
                               </div>
                             </div>
                           )}
 
                           {/* Retail / Others Section */}
-                          {retailMethods.length > 0 && (
+                          {(retailMethods.length > 0 || otherMethods.length > 0) && (
                             <div className="space-y-3">
                               <div className="text-xs font-bold text-stone-400 uppercase tracking-wider flex items-center justify-between">
-                                <span>Retail & Others</span>
+                                <span>Retail & Lainnya</span>
                                 <Wallet className="w-3.5 h-3.5 text-stone-500" />
                               </div>
                               <div className="grid grid-cols-2 gap-3">
-                                {retailMethods.map((m: any) => (
-                                  <button
-                                    key={m.paymentMethod}
-                                    type="button"
-                                    onClick={() => setPaymentMethod(m.paymentMethod)}
-                                    className={`p-3 rounded-2xl border transition-all flex items-center justify-center gap-2 ${
-                                      paymentMethod === m.paymentMethod
-                                        ? 'bg-emerald-500/10 border-emerald-500 text-emerald-300 ring-1 ring-emerald-500/40'
-                                        : 'bg-white border-stone-200 text-stone-800 hover:border-emerald-500 hover:shadow-sm'
-                                    }`}
-                                  >
-                                    <img src={m.paymentImage} alt={m.paymentName} className="h-6 object-contain" referrerPolicy="no-referrer" />
-                                  </button>
-                                ))}
+                                {[...retailMethods, ...otherMethods].map(renderMethodButton)}
                               </div>
                             </div>
                           )}
@@ -924,9 +953,18 @@ export default function Checkout() {
                       );
                     })()
                   ) : (
-                    <div className="flex flex-col items-center justify-center py-10 bg-stone-900 border border-stone-800 rounded-2xl">
-                      <Loader2 className="w-8 h-8 text-stone-500 animate-spin mb-3" />
-                      <span className="text-xs text-stone-400">Memuat metode pembayaran...</span>
+                    <div className="flex flex-col items-center justify-center py-8 px-4 bg-rose-950/20 border border-rose-500/30 rounded-2xl text-center space-y-3">
+                      <AlertCircle className="w-8 h-8 text-rose-400" />
+                      <div className="text-xs text-rose-300 font-semibold">
+                        {methodsError || 'Metode pembayaran belum tersedia saat ini.'}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setMethodsReloadKey((k) => k + 1)}
+                        className="px-4 py-2 rounded-xl bg-stone-800 hover:bg-stone-700 text-xs font-bold text-white border border-stone-700 transition-colors"
+                      >
+                        Muat Ulang Metode Pembayaran
+                      </button>
                     </div>
                   )}
                 </div>
@@ -961,12 +999,26 @@ export default function Checkout() {
                   </div>
                 )}
                 
-                {/* PAYMENT DETAILS BLOCK */}
-                {duitkuInvoice && !isTrial && (
+                {/* PAYMENT LOADING / ERROR / DETAILS BLOCK */}
+                {!isTrial && invoiceLoading && (
+                  <div className="bg-stone-950 border border-stone-800 rounded-2xl p-6 flex items-center justify-center gap-3 my-4 text-xs text-stone-300">
+                    <Loader2 className="w-5 h-5 text-amber-400 animate-spin" />
+                    <span>Membuat instruksi pembayaran untuk metode terpilih...</span>
+                  </div>
+                )}
+
+                {!isTrial && !invoiceLoading && invoiceError && (
+                  <div className="bg-rose-950/30 border border-rose-500/30 rounded-2xl p-4 my-4 flex items-start gap-3 text-xs text-rose-300">
+                    <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                    <span>{invoiceError}</span>
+                  </div>
+                )}
+
+                {duitkuInvoice && !isTrial && !invoiceLoading && (
                   <div className="bg-stone-950 border border-stone-800 rounded-2xl p-6 space-y-4 animate-fadeIn my-4">
                     
-                    {/* QRIS / QR Code */}
-                    {(qrDataUrl || duitkuInvoice.qrString) && (
+                    {/* QRIS / QR Code (only when this invoice returned a qrString) */}
+                    {duitkuInvoice.qrString && (
                       <div className="text-center space-y-4">
                         <div className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-400 bg-emerald-950/40 px-3 py-1 rounded-full border border-emerald-800/40">
                           <Zap className="w-3.5 h-3.5" /> Realtime Instant Settlement &bull; Berlaku 24 Jam
@@ -996,10 +1048,10 @@ export default function Checkout() {
                     )}
 
                     {/* Virtual Account / Retail */}
-                    {duitkuInvoice.vaNumber && !qrDataUrl && !duitkuInvoice.qrString && (
+                    {duitkuInvoice.vaNumber && !duitkuInvoice.qrString && (
                       <div className="space-y-2">
                         <div className="text-xs font-bold text-stone-400 uppercase tracking-wider text-center mb-2">
-                          Kode Pembayaran / Virtual Account
+                          Kode Pembayaran / Virtual Account ({duitkuInvoice.paymentMethodName || paymentMethod})
                         </div>
                         <div className="bg-stone-900 p-4 rounded-xl border border-stone-800 space-y-2">
                           <div className="flex items-center justify-between bg-stone-950 p-3 rounded-xl border border-stone-800">
@@ -1035,7 +1087,7 @@ export default function Checkout() {
                     {duitkuInvoice.paymentUrl && !duitkuInvoice.vaNumber && !duitkuInvoice.qrString && (
                       <div className="text-center space-y-4">
                         <div className="text-xs text-stone-400 max-w-md mx-auto leading-relaxed">
-                          Klik tombol di bawah ini untuk membuka aplikasi E-Wallet atau melanjutkan pembayaran.
+                          Klik tombol di bawah ini untuk membuka aplikasi E-Wallet atau melanjutkan pembayaran ({duitkuInvoice.paymentMethodName || paymentMethod}).
                         </div>
                         <a 
                           href={duitkuInvoice.paymentUrl} 

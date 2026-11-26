@@ -22,10 +22,13 @@ import {
   ShieldAlert,
   Wrench,
   Layers,
+  Activity,
+  Loader2,
 } from 'lucide-react';
 
 const ADMIN_NAV = [
   { path: '/admin/dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-5 h-5" /> },
+  { path: '/admin/connection-monitor', label: 'Monitoring Koneksi', icon: <Activity className="w-5 h-5" /> },
   { path: '/admin/ai-settings', label: 'Nama & Karakter AI', icon: <Bot className="w-5 h-5" /> },
   { path: '/admin/users', label: 'Pengguna', icon: <Users className="w-5 h-5" /> },
   { path: '/admin/transactions', label: 'Transaksi', icon: <ReceiptText className="w-5 h-5" /> },
@@ -50,6 +53,31 @@ export const AdminLayout: React.FC = () => {
   const navigate = useNavigate();
   const { settings } = useGlobalSettings();
   const [socials, setSocials] = useState<any>({});
+  const token = localStorage.getItem('admin_token');
+  const [sessionVerified, setSessionVerified] = useState(false);
+
+  useEffect(() => {
+    if (!token) return;
+    let active = true;
+    fetch('/api/admin/session-check', {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => {
+        if (!active) return;
+        if (res.status === 401) {
+          localStorage.removeItem('admin_token');
+          navigate('/admin/login?expired=1', { replace: true });
+          return;
+        }
+        setSessionVerified(true);
+      })
+      .catch(() => {
+        if (active) setSessionVerified(true);
+      });
+    return () => {
+      active = false;
+    };
+  }, [token, navigate]);
 
   useEffect(() => {
     fetch('/api/public-settings')
@@ -62,8 +90,17 @@ export const AdminLayout: React.FC = () => {
       .catch(console.error);
   }, []);
 
-  if (!localStorage.getItem('admin_token')) {
+  if (!token) {
     return <Navigate to="/admin/login" replace />;
+  }
+
+  if (!sessionVerified) {
+    return (
+      <div className="min-h-screen bg-stone-950 text-stone-300 flex flex-col items-center justify-center gap-3 font-sans">
+        <Loader2 className="w-7 h-7 animate-spin text-rose-500" />
+        <p className="text-xs font-medium text-stone-400">Memverifikasi sesi admin...</p>
+      </div>
+    );
   }
 
   const handleLogout = () => {

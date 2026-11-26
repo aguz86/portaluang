@@ -9,18 +9,41 @@ import {
   Bot,
   Link,
   Radio,
-  Lock
+  Lock,
+  Webhook,
+  Users,
+  Info,
+  Copy,
+  Check,
+  RefreshCw,
 } from 'lucide-react';
 import { PluConnectedBadge } from '../../components/PluConnectedBadge';
+
+interface WebhookStatus {
+  url: string;
+  isConfiguredOnTelegram: boolean;
+  isMatch: boolean;
+  pendingUpdateCount: number;
+  lastErrorMessage?: string;
+  lastErrorDate?: number;
+}
 
 export const AdminTelegram: React.FC = () => {
   const [message, setMessage] = useState('');
   const [configured, setConfigured] = useState(false);
   const [botUsername, setBotUsername] = useState('');
+  const [linkedUsersCount, setLinkedUsersCount] = useState(0);
+  const [webhookStatus, setWebhookStatus] = useState<WebhookStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [broadcasting, setBroadcasting] = useState(false);
   const [testingBot, setTestingBot] = useState(false);
+  const [settingWebhook, setSettingWebhook] = useState(false);
+  const [copiedWebhook, setCopiedWebhook] = useState(false);
+  const [suggestedWebhookUrl, setSuggestedWebhookUrl] = useState(`${window.location.origin}/api/telegram/webhook`);
+  const [webhookFromEnv, setWebhookFromEnv] = useState(false);
   const [feedback, setFeedback] = useState<{ success: boolean; text: string } | null>(null);
+
+  const expectedWebhookUrl = suggestedWebhookUrl;
 
   useEffect(() => {
     fetchTelegramStatus();
@@ -34,10 +57,19 @@ export const AdminTelegram: React.FC = () => {
           Authorization: `Bearer ${token}`,
         },
       });
+      if (res.status === 401) {
+        localStorage.removeItem('admin_token');
+        window.location.href = '/admin/login?expired=1';
+        return;
+      }
       const data = await res.json();
       if (data.success) {
         setConfigured(Boolean(data.configured));
         setBotUsername(data.username || '');
+        setLinkedUsersCount(Number(data.linkedUsersCount || 0));
+        setWebhookStatus(data.webhook || null);
+        if (data.suggestedWebhookUrl) setSuggestedWebhookUrl(String(data.suggestedWebhookUrl));
+        setWebhookFromEnv(Boolean(data.webhookFromEnv));
       }
     } catch (err) {
       console.error(err);
@@ -57,14 +89,21 @@ export const AdminTelegram: React.FC = () => {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
+        body: JSON.stringify({ webhookUrl: expectedWebhookUrl }),
       });
+      if (res.status === 401) {
+        localStorage.removeItem('admin_token');
+        window.location.href = '/admin/login?expired=1';
+        return;
+      }
       const data = await res.json();
       if (res.ok && data.success) {
         setConfigured(true);
         setBotUsername(data.username || '');
+        if (data.webhook) setWebhookStatus(data.webhook);
         setFeedback({
           success: true,
-          text: `Bot terverifikasi melalui server: @${data.username} (${data.firstName})`,
+          text: `Bot terverifikasi (@${data.username} - ${data.firstName}) dan daftar perintah bot sudah disinkronkan.`,
         });
       } else {
         setFeedback({
@@ -76,6 +115,44 @@ export const AdminTelegram: React.FC = () => {
       setFeedback({ success: false, text: 'Gagal menghubungi server untuk verifikasi Telegram API.' });
     } finally {
       setTestingBot(false);
+    }
+  };
+
+  const handleRegisterWebhook = async () => {
+    setSettingWebhook(true);
+    setFeedback(null);
+    try {
+      const token = localStorage.getItem('admin_token');
+      const res = await fetch('/api/admin/telegram/set-webhook', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ webhookUrl: expectedWebhookUrl }),
+      });
+      if (res.status === 401) {
+        localStorage.removeItem('admin_token');
+        window.location.href = '/admin/login?expired=1';
+        return;
+      }
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setWebhookStatus(data.webhook || null);
+        setFeedback({
+          success: true,
+          text: data.message || `Webhook Telegram berhasil diaktifkan ke ${expectedWebhookUrl}`,
+        });
+      } else {
+        setFeedback({
+          success: false,
+          text: data.error || 'Gagal mendaftarkan webhook ke Telegram.',
+        });
+      }
+    } catch {
+      setFeedback({ success: false, text: 'Gagal menghubungi server saat mendaftarkan webhook.' });
+    } finally {
+      setSettingWebhook(false);
     }
   };
 
@@ -95,14 +172,21 @@ export const AdminTelegram: React.FC = () => {
         },
         body: JSON.stringify({ message }),
       });
+      if (res.status === 401) {
+        localStorage.removeItem('admin_token');
+        window.location.href = '/admin/login?expired=1';
+        return;
+      }
       const data = await res.json();
 
       if (res.ok && data.success) {
         setFeedback({
           success: true,
-          text: data.message || 'Pesan broadcast berhasil dikirim ke pengguna Telegram terhubung!',
+          text:
+            data.message ||
+            `Broadcast selesai: terkirim ke ${data.sentCount || 0} dari ${data.totalTargets || 0} pengguna Telegram terhubung.`,
         });
-        setMessage('');
+        if ((data.sentCount || 0) > 0) setMessage('');
       } else {
         setFeedback({
           success: false,
@@ -116,16 +200,33 @@ export const AdminTelegram: React.FC = () => {
     }
   };
 
+  const copyWebhookUrl = () => {
+    navigator.clipboard.writeText(expectedWebhookUrl);
+    setCopiedWebhook(true);
+    setTimeout(() => setCopiedWebhook(false), 2000);
+  };
+
   return (
     <div className="space-y-6 max-w-5xl">
-      <div>
-        <h1 className="text-2xl font-bold text-stone-100 flex items-center gap-2.5">
-          <Bot className="w-7 h-7 text-cyan-400" />
-          <span>Telegram Bot & Notifikasi Pengguna</span>
-        </h1>
-        <p className="text-sm text-stone-400 mt-1">
-          Kelola status koneksi Bot Telegram (via Environment Variable) dan kirim pesan broadcast ke pengguna Portal Uang.
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-stone-100 flex items-center gap-2.5">
+            <Bot className="w-7 h-7 text-cyan-400" />
+            <span>Telegram Bot & Notifikasi Pengguna</span>
+          </h1>
+          <p className="text-sm text-stone-400 mt-1">
+            Kelola koneksi Bot Telegram, aktifkan Webhook agar bot membalas chat user otomatis, dan kirim broadcast.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={fetchTelegramStatus}
+          disabled={loading}
+          className="px-3.5 py-2 bg-stone-900 hover:bg-stone-800 border border-stone-800 rounded-xl text-xs font-bold text-stone-300 flex items-center gap-2 self-start"
+        >
+          <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+          Muat Ulang Status
+        </button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -159,9 +260,9 @@ export const AdminTelegram: React.FC = () => {
                       Token Bot disimpan eksklusif di Environment Variable server
                     </div>
                     <p className="text-stone-400 leading-relaxed">
-                      Demi keamanan, <code className="text-cyan-400">TELEGRAM_BOT_TOKEN</code> (dan opsional{' '}
-                      <code className="text-cyan-400">TELEGRAM_BOT_USERNAME</code>) hanya dikonfigurasi pada panel
-                      Environment Variables server dan tidak pernah diinput atau dikirim ke browser.
+                      <code className="text-cyan-400">TELEGRAM_BOT_TOKEN</code> (dan opsional{' '}
+                      <code className="text-cyan-400">TELEGRAM_BOT_USERNAME</code>) dibaca langsung dari file{' '}
+                      <code className="text-cyan-400">.env</code> server dan tidak pernah dikirim ke browser.
                     </p>
                   </div>
                 </div>
@@ -206,12 +307,115 @@ export const AdminTelegram: React.FC = () => {
             )}
           </div>
 
+          {/* WEBHOOK INTEGRATION & EXPLANATION CARD */}
+          <div className="bg-stone-900 border border-cyan-500/25 rounded-3xl p-6 shadow-sm space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <h3 className="text-base font-bold text-stone-100 flex items-center gap-2">
+                <Webhook className="w-5 h-5 text-cyan-400" />
+                <span>Status & Aktivasi Link Webhook Bot</span>
+              </h3>
+              <PluConnectedBadge
+                connected={Boolean(webhookStatus?.isConfiguredOnTelegram && webhookStatus?.isMatch)}
+                configured={Boolean(configured)}
+                size="sm"
+                labelConnected="WEBHOOK AKTIF"
+                labelDisconnected={webhookStatus?.url ? 'URL BERBEDA' : 'BELUM DIAKTIFKAN'}
+                labelUnconfigured="BOT BELUM DISET"
+              />
+            </div>
+
+            <div className="p-4 rounded-2xl bg-cyan-500/5 border border-cyan-500/20 flex items-start gap-3 text-xs text-stone-300 leading-relaxed">
+              <Info className="w-5 h-5 text-cyan-400 shrink-0 mt-0.5" />
+              <div className="space-y-1.5">
+                <div className="font-bold text-cyan-200">Apa kegunaan Link Webhook ini?</div>
+                <p className="text-stone-400">
+                  Link Webhook adalah alamat &ldquo;penerima pesan masuk&rdquo; di server Anda. Setiap kali pengguna
+                  menekan <strong>Start</strong>, mengetik <code className="text-cyan-300">/status</code>,{' '}
+                  <code className="text-cyan-300">/tagihan</code>, atau{' '}
+                  <code className="text-cyan-300">/ringkasan</code> di Telegram, server Telegram langsung meneruskan
+                  chat tersebut ke link ini agar Portal Uang otomatis menghubungkan akun &amp; membalas pesan user.
+                </p>
+                <p className="text-stone-400">
+                  Tanpa mengaktifkan Webhook (status masih <em>BELUM DIAKTIFKAN</em>), bot bisa mengirim notif keluar,
+                  tetapi <strong>tidak akan merespons chat masuk atau pairing user</strong>. Cukup klik tombol{' '}
+                  <strong>Aktifkan Webhook Sekarang</strong> di bawah ini (tidak perlu atur manual).
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-stone-500">
+                Endpoint Webhook Aplikasi Anda {webhookFromEnv && <span className="text-emerald-400">(Dari ENV TELEGRAM_WEBHOOK_URL)</span>}
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="flex-1 p-2.5 rounded-xl bg-stone-950 border border-stone-800 font-mono text-xs text-cyan-300 break-all select-all">
+                  {expectedWebhookUrl}
+                </div>
+                <button
+                  type="button"
+                  onClick={copyWebhookUrl}
+                  className="px-3 py-2.5 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-200 text-xs font-bold flex items-center gap-1.5 shrink-0"
+                >
+                  {copiedWebhook ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                  <span>{copiedWebhook ? 'Tersalin' : 'Salin'}</span>
+                </button>
+              </div>
+            </div>
+
+            {webhookStatus && (
+              <div className="p-3.5 rounded-2xl bg-stone-950 border border-stone-800 text-xs space-y-1.5">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-stone-500">Webhook terdaftar di Telegram:</span>
+                  <span className="font-mono text-stone-200 break-all text-right">
+                    {webhookStatus.url || '(Belum ada URL terdaftar)'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-stone-500">Antrean update tertunda:</span>
+                  <span className="font-mono text-stone-300">{webhookStatus.pendingUpdateCount}</span>
+                </div>
+                {webhookStatus.lastErrorMessage && (
+                  <div className="text-rose-400 pt-1 border-t border-stone-900">
+                    Error terakhir Telegram: {webhookStatus.lastErrorMessage}
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+              <div className="text-[11px] text-stone-500">
+                Perintah aktif otomatis: <code className="text-stone-300">/start</code>,{' '}
+                <code className="text-stone-300">/status</code>, <code className="text-stone-300">/tagihan</code>,{' '}
+                <code className="text-stone-300">/ringkasan</code>, <code className="text-stone-300">/bantuan</code>
+              </div>
+              <button
+                type="button"
+                onClick={handleRegisterWebhook}
+                disabled={settingWebhook || !configured}
+                className="px-5 py-2.5 bg-cyan-500 hover:bg-cyan-400 text-stone-950 font-bold rounded-xl text-xs flex items-center gap-2 transition-colors disabled:opacity-50"
+              >
+                {settingWebhook ? <Loader2 className="w-4 h-4 animate-spin" /> : <Link className="w-4 h-4" />}
+                <span>
+                  {webhookStatus?.isConfiguredOnTelegram && webhookStatus?.isMatch
+                    ? 'Sinkronkan Ulang Webhook'
+                    : 'Aktifkan Webhook Sekarang'}
+                </span>
+              </button>
+            </div>
+          </div>
+
           {/* BROADCAST CARD */}
           <div className="bg-stone-900 border border-stone-800 rounded-3xl p-6 shadow-sm">
-            <h3 className="text-base font-bold text-stone-100 mb-2 flex items-center gap-2">
-              <MessageSquare className="w-5 h-5 text-rose-400" />
-              <span>Kirim Pengumuman (Broadcast Telegram)</span>
-            </h3>
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <h3 className="text-base font-bold text-stone-100 flex items-center gap-2">
+                <MessageSquare className="w-5 h-5 text-rose-400" />
+                <span>Kirim Pengumuman (Broadcast Telegram)</span>
+              </h3>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-stone-950 border border-stone-800 text-[11px] font-bold text-stone-300">
+                <Users className="w-3.5 h-3.5 text-cyan-400" />
+                {linkedUsersCount} User Terhubung
+              </span>
+            </div>
             <p className="text-xs text-stone-400 mb-4">
               Kirimkan pengumuman penting, info fitur baru, atau peringatan sistem ke seluruh pengguna yang telah
               menghubungkan Telegram.
@@ -228,11 +432,11 @@ export const AdminTelegram: React.FC = () => {
               <div className="mt-3 flex justify-end">
                 <button
                   type="submit"
-                  disabled={broadcasting || !configured}
+                  disabled={broadcasting || !configured || linkedUsersCount === 0}
                   className="px-6 py-2.5 bg-rose-500 hover:bg-rose-400 text-stone-950 font-bold rounded-xl flex items-center gap-2 transition-colors disabled:opacity-50 text-xs shadow-md"
                 >
                   {broadcasting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                  Kirim Broadcast
+                  Kirim Broadcast ({linkedUsersCount})
                 </button>
               </div>
             </form>
@@ -253,6 +457,9 @@ export const AdminTelegram: React.FC = () => {
                 {botUsername && (
                   <p className="text-xs text-cyan-400 font-mono pt-1">@{botUsername.replace(/^@/, '')}</p>
                 )}
+                <p className="text-[11px] text-stone-400">
+                  {linkedUsersCount} akun user terhubung ke bot
+                </p>
               </div>
             ) : (
               <div className="mt-2 flex justify-center">
@@ -263,24 +470,36 @@ export const AdminTelegram: React.FC = () => {
             <div className="mt-5 pt-4 border-t border-stone-800 text-left text-xs text-stone-400 space-y-2">
               <div className="font-bold text-stone-300">Alur Kerja Verifikasi:</div>
               <ol className="list-decimal list-inside space-y-1 text-[11px] leading-relaxed">
-                <li>User klik "Hubungkan Telegram"</li>
-                <li>Web generate token & QR code pairing</li>
-                <li>User membuka bot & tekan Start</li>
-                <li>Bot auto-verifikasi & web auto-refresh</li>
+                <li>Admin aktifkan Webhook (1 klik di halaman ini)</li>
+                <li>User klik &ldquo;Hubungkan Telegram&rdquo; di aplikasi</li>
+                <li>Web membuat token &amp; QR code pairing</li>
+                <li>User membuka bot &amp; tekan Start</li>
+                <li>Telegram mengirim pesan ke Webhook &amp; akun otomatis terhubung</li>
               </ol>
             </div>
           </div>
 
           <div className="bg-stone-900 border border-stone-800 rounded-3xl p-6 shadow-sm space-y-3">
             <div className="flex items-center gap-2 text-stone-200 font-bold text-xs">
-              <Link className="w-4 h-4 text-cyan-400" />
-              <span>Webhook Endpoint URL</span>
+              <Bot className="w-4 h-4 text-cyan-400" />
+              <span>Daftar Perintah Bot User</span>
             </div>
-            <p className="text-[11px] text-stone-400 leading-relaxed">
-              Webhook bot menerima update realtime pada endpoint:
-            </p>
-            <div className="p-2.5 rounded-xl bg-stone-950 border border-stone-800 font-mono text-[10px] text-stone-300 break-all select-all">
-              {window.location.origin}/api/telegram/webhook
+            <div className="space-y-2 text-[11px] text-stone-400">
+              <div className="p-2.5 rounded-xl bg-stone-950 border border-stone-800">
+                <code className="text-cyan-300 font-bold">/start</code> — Panduan &amp; verifikasi pairing akun
+              </div>
+              <div className="p-2.5 rounded-xl bg-stone-950 border border-stone-800">
+                <code className="text-cyan-300 font-bold">/status</code> — Cek apakah chat Telegram sudah tersambung
+              </div>
+              <div className="p-2.5 rounded-xl bg-stone-950 border border-stone-800">
+                <code className="text-cyan-300 font-bold">/tagihan</code> — Lihat daftar tagihan yang belum lunas
+              </div>
+              <div className="p-2.5 rounded-xl bg-stone-950 border border-stone-800">
+                <code className="text-cyan-300 font-bold">/ringkasan</code> — Lihat ringkasan saldo &amp; pengeluaran
+              </div>
+              <div className="p-2.5 rounded-xl bg-stone-950 border border-stone-800">
+                <code className="text-cyan-300 font-bold">/bantuan</code> — Tampilkan daftar perintah
+              </div>
             </div>
           </div>
         </div>

@@ -46,27 +46,42 @@ export const AdminDashboard: React.FC = () => {
 
   const [integrations, setIntegrations] = useState<IntegrationItem[]>([]);
   const [connectedCount, setConnectedCount] = useState(0);
-  const [totalIntegrations, setTotalIntegrations] = useState(6);
+  const [totalIntegrations, setTotalIntegrations] = useState(7);
   const [checkingIntegrations, setCheckingIntegrations] = useState(true);
+  const [integrationsError, setIntegrationsError] = useState('');
 
   const fetchIntegrationsStatus = useCallback(async (forceRefresh = false) => {
     const adminToken = localStorage.getItem('admin_token') || localStorage.getItem('adminToken');
-    if (!adminToken) return;
+    if (!adminToken) {
+      setCheckingIntegrations(false);
+      setIntegrationsError('Sesi admin tidak ditemukan. Silakan login ulang di /admin/login.');
+      return;
+    }
     setCheckingIntegrations(true);
+    setIntegrationsError('');
     try {
       const res = await fetch(`/api/admin/integrations-status${forceRefresh ? '?refresh=1' : ''}`, {
         headers: { Authorization: `Bearer ${adminToken}` },
       });
+      if (res.status === 401) {
+        setIntegrationsError('Sesi admin kedaluwarsa (server baru restart). Silakan logout lalu login ulang.');
+        return;
+      }
       if (res.ok) {
         const data = await res.json();
         if (data.success) {
           setIntegrations(Array.isArray(data.integrations) ? data.integrations : []);
           setConnectedCount(Number(data.connectedCount || 0));
-          setTotalIntegrations(Number(data.totalCount || 6));
+          setTotalIntegrations(Number(data.totalCount || 7));
+        } else {
+          setIntegrationsError(data.error || 'Gagal memeriksa status integrasi.');
         }
+      } else {
+        setIntegrationsError(`Server merespons HTTP ${res.status} saat memeriksa integrasi.`);
       }
     } catch (err) {
       console.error('Error checking integrations status:', err);
+      setIntegrationsError('Gagal terhubung ke API status integrasi.');
     } finally {
       setCheckingIntegrations(false);
     }
@@ -177,7 +192,12 @@ export const AdminDashboard: React.FC = () => {
           </p>
         </div>
 
-        {checkingIntegrations && integrations.length === 0 ? (
+        {integrationsError ? (
+          <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-xs text-rose-300 flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
+            <span>{integrationsError}</span>
+          </div>
+        ) : checkingIntegrations && integrations.length === 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
             {[1, 2, 3, 4, 5, 6].map((n) => (
               <div key={n} className="h-20 rounded-xl bg-stone-950 border border-stone-800 animate-pulse" />

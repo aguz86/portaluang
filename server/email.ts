@@ -148,7 +148,23 @@ export async function verifyEmailTransport(pool: any): Promise<{ ok: boolean; pr
       if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
         return { ok: false, provider: 'freeresend', error: 'Base URL FreeResend tidak valid.' };
       }
-      return { ok: true, provider: 'freeresend' };
+      const probeBase = normalizeBaseUrl(cfg.apiBaseUrl).replace(/\/emails$/i, '');
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 3500);
+      try {
+        await fetch(probeBase, { method: 'HEAD', signal: controller.signal });
+        clearTimeout(timer);
+        return { ok: true, provider: 'freeresend' };
+      } catch (netErr: any) {
+        clearTimeout(timer);
+        const code = netErr?.cause?.code || netErr?.code || '';
+        const msg = netErr?.message || 'Tidak dapat dihubungi';
+        return {
+          ok: false,
+          provider: 'freeresend',
+          error: `FreeResend (${probeBase}) tidak dapat dijangkau${code ? ` [${code}]` : ''}: ${msg}`,
+        };
+      }
     } catch {
       return { ok: false, provider: 'freeresend', error: 'Base URL FreeResend tidak valid.' };
     }
@@ -310,14 +326,30 @@ async function sendViaFreeResendApi(cfg: ResolvedEmailConfig, payload: SendEmail
     }));
   }
 
-  const res = await fetch(endpoint, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${cfg.apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(body),
-  });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 8000);
+  let res: Response;
+  try {
+    res = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${cfg.apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+  } catch (netErr: any) {
+    clearTimeout(timer);
+    const code = netErr?.cause?.code || netErr?.code || '';
+    const detail = netErr?.cause?.message || netErr?.message || 'Koneksi gagal';
+    return {
+      success: false,
+      provider: 'freeresend',
+      error: `FreeResend tidak dapat dihubungi (${endpoint})${code ? ` [${code}]` : ''}: ${detail}`,
+    };
+  }
+  clearTimeout(timer);
 
   const data: any = await res.json().catch(() => ({}));
   if (!res.ok) {

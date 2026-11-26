@@ -36,17 +36,20 @@ export interface DuitkuTransaction {
   newExpiresAt?: string;
 }
 
+export function getDuitkuEnvFromServer(): 'sandbox' | 'production' {
+  const raw = (process.env.DUITKU_ENV || '').trim().toLowerCase();
+  return raw === 'production' ? 'production' : 'sandbox';
+}
+
 export async function getDuitkuConfig(pool: any): Promise<DuitkuConfig> {
-  let env: 'sandbox' | 'production' = (process.env.DUITKU_ENV as 'sandbox' | 'production') || 'sandbox';
+  // Mode sandbox/production strictly comes from server ENV (DUITKU_ENV) and cannot be overridden via DB or Admin UI
+  const env: 'sandbox' | 'production' = getDuitkuEnvFromServer();
   let sandboxWhitelist: string[] = [];
 
   try {
     const result = await pool.query('SELECT data FROM app_state WHERE id = $1', ['global_settings']);
     if (result.rows.length > 0 && result.rows[0].data) {
       const data = result.rows[0].data;
-      if (!process.env.DUITKU_ENV && (data.duitkuEnv === 'production' || data.duitkuEnv === 'sandbox')) {
-        env = data.duitkuEnv;
-      }
       if (data.duitkuSandboxWhitelist) {
         sandboxWhitelist = String(data.duitkuSandboxWhitelist)
           .split(',')
@@ -55,7 +58,7 @@ export async function getDuitkuConfig(pool: any): Promise<DuitkuConfig> {
       }
     }
   } catch (err) {
-    console.error('Error loading Duitku non-secret settings from DB:', err);
+    console.error('Error loading Duitku whitelist settings from DB:', err);
   }
 
   // All Duitku credentials (merchantCode & apiKey) MUST come strictly from environment variables
@@ -111,19 +114,81 @@ export function generateDuitkuStatusSignature(
 }
 
 // Payment Channel Map
-export const DUITKU_CHANNELS: Record<string, { code: string; name: string; type: 'qris' | 'va' | 'ewallet' | 'cc'; icon: string }> = {
+export const DUITKU_CHANNELS: Record<string, { code: string; name: string; type: 'qris' | 'va' | 'ewallet' | 'retail' | 'cc'; icon: string }> = {
   qris: { code: 'NQ', name: 'QRIS Standar Nasional (BCA, GoPay, OVO, ShopeePay, Dana)', type: 'qris', icon: 'QrCode' },
+  qris_nobu: { code: 'NQ', name: 'QRIS Nobu', type: 'qris', icon: 'QrCode' },
+  qris_shopee: { code: 'SP', name: 'ShopeePay QRIS', type: 'qris', icon: 'QrCode' },
+  qris_linkaja: { code: 'LQ', name: 'LinkAja QRIS', type: 'qris', icon: 'QrCode' },
+  qris_aq: { code: 'AQ', name: 'QRIS App', type: 'qris', icon: 'QrCode' },
+  qris_sq: { code: 'SQ', name: 'Nusapay QRIS', type: 'qris', icon: 'QrCode' },
   va_bca: { code: 'BC', name: 'BCA Virtual Account', type: 'va', icon: 'Building2' },
   va_mandiri: { code: 'M2', name: 'Mandiri Virtual Account (Livin)', type: 'va', icon: 'Building2' },
+  va_mandiri_h2h: { code: 'M1', name: 'Mandiri Virtual Account', type: 'va', icon: 'Building2' },
   va_bri: { code: 'BR', name: 'BRI Virtual Account (BRIVA)', type: 'va', icon: 'Building2' },
   va_bni: { code: 'B1', name: 'BNI Virtual Account', type: 'va', icon: 'Building2' },
+  va_bni_alt: { code: 'I1', name: 'BNI Virtual Account', type: 'va', icon: 'Building2' },
   va_cimb: { code: 'NC', name: 'CIMB Niaga Virtual Account', type: 'va', icon: 'Building2' },
+  va_cimb_alt: { code: 'B4', name: 'CIMB Niaga Virtual Account', type: 'va', icon: 'Building2' },
   va_permata: { code: 'VA', name: 'Permata Bank Virtual Account', type: 'va', icon: 'Building2' },
+  va_permata_alt: { code: 'BT', name: 'Permata Bank Virtual Account', type: 'va', icon: 'Building2' },
+  va_sampoerna: { code: 'S1', name: 'Bank Sahabat Sampoerna VA', type: 'va', icon: 'Building2' },
+  va_maybank: { code: 'MB', name: 'Maybank Virtual Account', type: 'va', icon: 'Building2' },
+  va_atm_bersama: { code: 'A1', name: 'ATM Bersama Virtual Account', type: 'va', icon: 'Building2' },
+  va_bsi: { code: 'BV', name: 'BSI Virtual Account', type: 'va', icon: 'Building2' },
+  va_artha: { code: 'AG', name: 'Bank Artha Graha VA', type: 'va', icon: 'Building2' },
   ewallet_gopay: { code: 'GP', name: 'GoPay Direct', type: 'ewallet', icon: 'Smartphone' },
-  ewallet_shopee: { code: 'SP', name: 'ShopeePay App / QR', type: 'ewallet', icon: 'Smartphone' },
+  ewallet_shopee: { code: 'SA', name: 'ShopeePay App', type: 'ewallet', icon: 'Smartphone' },
   ewallet_ovo: { code: 'OV', name: 'OVO Push Payment', type: 'ewallet', icon: 'Smartphone' },
-  ewallet_dana: { code: 'DA', name: 'DANA Checkout', type: 'ewallet', icon: 'Smartphone' }
+  ewallet_dana: { code: 'DA', name: 'DANA Checkout', type: 'ewallet', icon: 'Smartphone' },
+  ewallet_linkaja: { code: 'LA', name: 'LinkAja App', type: 'ewallet', icon: 'Smartphone' },
+  retail_pos: { code: 'FT', name: 'Retail (Alfamart / Pegadaian / POS)', type: 'retail', icon: 'Wallet' },
+  retail_indomaret: { code: 'IR', name: 'Indomaret', type: 'retail', icon: 'Wallet' },
+  retail_alfamart: { code: 'AL', name: 'Alfamart', type: 'retail', icon: 'Wallet' },
+  credit_card: { code: 'VC', name: 'Kartu Kredit (Visa / Mastercard / JCB)', type: 'cc', icon: 'CreditCard' }
 };
+
+export function resolveDuitkuChannel(
+  paymentMethod: string,
+  customName?: string
+): { code: string; name: string; type: 'qris' | 'va' | 'ewallet' | 'retail' | 'cc'; icon: string } {
+  const raw = (paymentMethod || '').trim();
+  if (DUITKU_CHANNELS[raw]) {
+    const ch = DUITKU_CHANNELS[raw];
+    return customName ? { ...ch, name: customName } : ch;
+  }
+
+  const upper = raw.toUpperCase();
+  const byCode = Object.values(DUITKU_CHANNELS).find(c => c.code === upper);
+  if (byCode) {
+    return customName ? { ...byCode, name: customName } : byCode;
+  }
+
+  // Always preserve valid 2-character Duitku channel codes (never overwrite to QRIS!)
+  if (/^[A-Z0-9]{2}$/.test(upper)) {
+    const qrisCodes = new Set(['NQ', 'LQ', 'AQ', 'SQ', 'DQ', 'GQ']);
+    const retailCodes = new Set(['FT', 'IR', 'AL', 'R1']);
+    const ewalletCodes = new Set(['GP', 'SP', 'SA', 'OV', 'DA', 'LA', 'SL', 'OL']);
+    const ccCodes = new Set(['VC', 'DN']);
+    const type: 'qris' | 'va' | 'ewallet' | 'retail' | 'cc' = qrisCodes.has(upper)
+      ? 'qris'
+      : retailCodes.has(upper)
+      ? 'retail'
+      : ewalletCodes.has(upper)
+      ? 'ewallet'
+      : ccCodes.has(upper)
+      ? 'cc'
+      : 'va';
+
+    return {
+      code: upper,
+      name: customName || `Duitku (${upper})`,
+      type,
+      icon: type === 'qris' ? 'QrCode' : type === 'va' ? 'Building2' : 'Wallet',
+    };
+  }
+
+  return DUITKU_CHANNELS['qris'];
+}
 
 export async function getAllTransactions(pool: any): Promise<DuitkuTransaction[]> {
   try {

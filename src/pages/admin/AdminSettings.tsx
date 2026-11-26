@@ -18,6 +18,8 @@ import { PluConnectedBadge } from '../../components/PluConnectedBadge';
 
 interface EnvStatus {
   database: boolean;
+  duitkuEnv: 'sandbox' | 'production';
+  duitkuEnvSetInEnv: boolean;
   duitkuSandbox: boolean;
   duitkuProduction: boolean;
   smtp: boolean;
@@ -26,10 +28,14 @@ interface EnvStatus {
   metaPixel: boolean;
   metaCapi: boolean;
   aiEngine: boolean;
+  adminIpWhitelist: boolean;
+  adminIpWhitelistIps: string[];
 }
 
 const DEFAULT_ENV_STATUS: EnvStatus = {
   database: false,
+  duitkuEnv: 'sandbox',
+  duitkuEnvSetInEnv: false,
   duitkuSandbox: false,
   duitkuProduction: false,
   smtp: false,
@@ -38,6 +44,8 @@ const DEFAULT_ENV_STATUS: EnvStatus = {
   metaPixel: false,
   metaCapi: false,
   aiEngine: false,
+  adminIpWhitelist: false,
+  adminIpWhitelistIps: [],
 };
 
 const EnvStatusBadge: React.FC<{ active: boolean; labelActive?: string; labelInactive?: string }> = ({
@@ -107,6 +115,7 @@ export const AdminSettings: React.FC = () => {
 
   const [loading, setLoading] = useState(true);
   const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
+  const [detectedClientIp, setDetectedClientIp] = useState('');
   const [socials, setSocials] = useState({
     whatsapp: '',
     tiktok: '',
@@ -125,12 +134,20 @@ export const AdminSettings: React.FC = () => {
             Authorization: `Bearer ${token}`,
           },
         });
+        if (res.status === 401) {
+          localStorage.removeItem('admin_token');
+          window.location.href = '/admin/login?expired=1';
+          return;
+        }
         const data = await res.json();
         if (data.envStatus) {
           setEnvStatus({ ...DEFAULT_ENV_STATUS, ...data.envStatus });
+          setDuitkuEnv(data.envStatus.duitkuEnv === 'production' ? 'production' : 'sandbox');
+        }
+        if (data.detectedClientIp) {
+          setDetectedClientIp(String(data.detectedClientIp));
         }
         if (data.success && data.data) {
-          setDuitkuEnv(data.data.duitkuEnv || 'sandbox');
           setDuitkuSandboxWhitelist(data.data.duitkuSandboxWhitelist || '');
           setAdminIpWhitelist(data.data.adminIpWhitelist || '');
           if (data.data.emailProvider) setEmailProvider(data.data.emailProvider);
@@ -203,7 +220,6 @@ export const AdminSettings: React.FC = () => {
 
     try {
       const payload = {
-        duitkuEnv,
         duitkuSandboxWhitelist,
         adminIpWhitelist,
         emailProvider,
@@ -424,7 +440,7 @@ export const AdminSettings: React.FC = () => {
             Integrasi Duitku Payment Gateway
           </h3>
           <p className="text-xs text-stone-400 mb-6">
-            Merchant Code & API Key Duitku dibaca otomatis dari Environment Variables server. Di sini Anda hanya memilih mode aktif (<code className="text-amber-300">sandbox</code> / <code className="text-amber-300">production</code>) dan menyalin URL webhook.
+            Mode aktif (<code className="text-amber-300">DUITKU_ENV</code>) maupun Merchant Code &amp; API Key Duitku dibaca eksklusif dari Environment Variables server (<code className="text-amber-300">.env</code>) dan tidak dapat diubah melalui dashboard.
           </p>
 
           <div className="space-y-4 mt-4">
@@ -446,18 +462,25 @@ export const AdminSettings: React.FC = () => {
             )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-stone-300">
-                  Duitku Environment Mode
-                </label>
-                <select
-                  value={duitkuEnv}
-                  onChange={(e) => setDuitkuEnv(e.target.value as 'sandbox' | 'production')}
-                  className="mt-1.5 block w-full px-4 py-2.5 bg-stone-950 border border-stone-800 rounded-xl text-stone-100 text-sm font-semibold focus:border-amber-500 focus:outline-none"
-                >
-                  <option value="sandbox">Sandbox / Testing (sandbox.duitku.com)</option>
-                  <option value="production">Production / Live (passport.duitku.com)</option>
-                </select>
+              <div className="p-3.5 rounded-xl bg-stone-950 border border-stone-800 flex flex-col justify-between gap-2">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-bold text-stone-300 uppercase">
+                    Mode Aktif (Read-Only ENV)
+                  </span>
+                  <span
+                    className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase border ${
+                      duitkuEnv === 'production'
+                        ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
+                        : 'bg-amber-500/15 text-amber-300 border-amber-500/30'
+                    }`}
+                  >
+                    {duitkuEnv === 'production' ? 'PRODUCTION / LIVE' : 'SANDBOX / TESTING'}
+                  </span>
+                </div>
+                <div className="text-[11px] font-mono text-stone-500 leading-relaxed">
+                  ENV: DUITKU_ENV=&quot;{duitkuEnv}&quot;{' '}
+                  {!envStatus.duitkuEnvSetInEnv && '(default sandbox karena DUITKU_ENV kosong)'}
+                </div>
               </div>
 
               <div className="p-3.5 rounded-xl bg-stone-950 border border-stone-800 flex flex-col justify-between gap-2">
@@ -533,10 +556,10 @@ export const AdminSettings: React.FC = () => {
             <div className="flex justify-end mt-6 pt-4 border-t border-amber-500/20">
               <button
                 type="button"
-                onClick={() => handleSaveSection('duitku', 'Mode Payment Gateway berhasil disimpan!')}
+                onClick={() => handleSaveSection('duitku', 'Whitelist Sandbox Duitku berhasil disimpan!')}
                 className="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-stone-950 font-bold rounded-xl flex items-center gap-2 transition-colors text-sm"
               >
-                <Save className="w-4 h-4" /> Simpan Mode Duitku
+                <Save className="w-4 h-4" /> Simpan Whitelist Duitku
               </button>
             </div>
           </div>
@@ -1062,11 +1085,75 @@ export const AdminSettings: React.FC = () => {
           )}
 
           <div className="space-y-6">
+            <div className="p-4 rounded-xl bg-stone-950 border border-stone-800 space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <div className="text-xs font-bold text-stone-200">Admin IP Whitelist (ENV Server)</div>
+                  <div className="text-[11px] font-mono text-stone-500">ENV: ADMIN_IP_WHITELIST (pisahkan koma)</div>
+                </div>
+                <EnvStatusBadge
+                  active={envStatus.adminIpWhitelist}
+                  labelActive="AKTIF DI ENV"
+                  labelInactive="Belum diset di ENV"
+                />
+              </div>
+
+              {envStatus.adminIpWhitelistIps.length > 0 ? (
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {envStatus.adminIpWhitelistIps.map((ip) => (
+                    <span
+                      key={ip}
+                      className="px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/25 text-emerald-300 font-mono text-[11px]"
+                    >
+                      {ip}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-[11px] text-stone-400">
+                  Tambahkan <code className="text-amber-300">ADMIN_IP_WHITELIST=&quot;{detectedClientIp || 'IP_ANDA'}&quot;</code> pada file <code className="text-amber-300">.env</code> server untuk mengunci akses login Admin dari IP tertentu via ENV.
+                </p>
+              )}
+
+              {detectedClientIp && (
+                <div className="pt-2 border-t border-stone-900 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                  <div className="text-stone-400">
+                    IP Anda saat ini: <span className="font-mono text-amber-300 font-bold">{detectedClientIp}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => copyToClipboard(detectedClientIp, 'clientIp')}
+                      className="px-2.5 py-1 bg-stone-800 hover:bg-stone-700 text-stone-200 rounded-lg text-[11px] font-bold"
+                    >
+                      {copiedUrl === 'clientIp' ? 'IP Tersalin!' : 'Salin IP'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const existing = adminIpWhitelist
+                          .split(',')
+                          .map((s) => s.trim())
+                          .filter(Boolean);
+                        if (!existing.includes(detectedClientIp)) {
+                          setAdminIpWhitelist([...existing, detectedClientIp].join(', '));
+                        }
+                      }}
+                      className="px-2.5 py-1 bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 rounded-lg text-[11px] font-bold"
+                    >
+                      + Tambah IP ke Daftar Bawah
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
             <div>
-              <label className="block text-sm font-bold text-stone-300 mb-2">Admin IP Whitelist</label>
+              <label className="block text-sm font-bold text-stone-300 mb-2">
+                Admin IP Whitelist Tambahan (Dashboard)
+              </label>
               <p className="text-xs text-stone-500 mb-2">
-                Pisahkan dengan koma (contoh: 114.79.20.150, 192.168.1.1). IP lokal (127.0.0.1, localhost) otomatis
-                diizinkan. Kosongkan jika tidak ingin membatasi (tidak disarankan).
+                Digabungkan dengan <code className="text-amber-300">ADMIN_IP_WHITELIST</code> di ENV. Pisahkan dengan koma (contoh: 114.79.20.150, 192.168.1.1). IP lokal (127.0.0.1, localhost) otomatis diizinkan. Kosongkan keduanya (ENV &amp; sini) jika ingin mengizinkan semua IP.
               </p>
               <input
                 type="text"

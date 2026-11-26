@@ -38,6 +38,7 @@ import { AdminEmailCenter } from './pages/admin/AdminEmailCenter';
 import { AdminErrorMonitor } from './pages/admin/AdminErrorMonitor';
 import { AdminMaintenance } from './pages/admin/AdminMaintenance';
 import { AdminPayloadCMS } from './pages/admin/AdminPayloadCMS';
+import { AdminConnectionMonitor } from './pages/admin/AdminConnectionMonitor';
 import { MetaPixel } from './components/MetaPixel';
 import { MaintenanceGate } from './components/MaintenanceGate';
 
@@ -80,6 +81,7 @@ export default function App() {
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<Navigate to="/admin/dashboard" replace />} />
             <Route path="dashboard" element={<AdminDashboard />} />
+            <Route path="connection-monitor" element={<AdminConnectionMonitor />} />
             <Route path="ai-settings" element={<AdminAiSettings />} />
             <Route path="users" element={<AdminUsers />} />
             <Route path="transactions" element={<AdminTransactions />} />

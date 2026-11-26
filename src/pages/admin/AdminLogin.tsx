@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Shield, Key, AlertTriangle, ArrowRight, Eye, EyeOff, ShieldCheck, Check, X, Sparkles } from 'lucide-react';
 
 export const AdminLogin: React.FC = () => {
@@ -12,6 +12,8 @@ export const AdminLogin: React.FC = () => {
   const [totpRequired, setTotpRequired] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const isExpired = searchParams.get('expired') === '1';
 
   useEffect(() => {
     const checkBootstrap = async () => {
@@ -96,6 +98,14 @@ export const AdminLogin: React.FC = () => {
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-stone-900 border border-stone-800 py-8 px-4 shadow sm:rounded-xl sm:px-10">
+          {isExpired && !error && (
+            <div className="mb-6 bg-amber-500/10 border border-amber-500/25 rounded-xl p-4 flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+              <p className="text-xs text-amber-200 leading-relaxed">
+                Sesi admin Anda telah berakhir (atau server baru saja di-restart). Silakan login kembali untuk memuat status integrasi terbaru.
+              </p>
+            </div>
+          )}
           {needsBootstrap && (
             <div className="mb-6 bg-amber-500/10 border border-amber-500/25 rounded-xl p-4 flex items-start gap-3">
               <Sparkles className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />

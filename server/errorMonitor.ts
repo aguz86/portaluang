@@ -147,8 +147,35 @@ export function parseDeveloperEmails(raw: string): string[] {
     .filter((e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e));
 }
 
+export interface RealtimeErrorEvent {
+  id: string;
+  timestamp: string;
+  integration: IntegrationKey;
+  severity: ErrorSeverity;
+  action: string;
+  message: string;
+  details?: string;
+}
+
+const MAX_REALTIME_EVENTS = 120;
 let cachedMonitorConfig: ErrorMonitorConfig = { ...DEFAULT_CONFIG };
 let cachedSystemLogs: SystemErrorLog[] = [];
+const realtimeErrorEvents: RealtimeErrorEvent[] = [];
+
+export function getRealtimeErrorEvents(): RealtimeErrorEvent[] {
+  return [...realtimeErrorEvents];
+}
+
+function pushRealtimeErrorEvent(event: Omit<RealtimeErrorEvent, 'id' | 'timestamp'>): void {
+  realtimeErrorEvents.unshift({
+    id: `rt_${Date.now()}_${crypto.randomBytes(2).toString('hex')}`,
+    timestamp: new Date().toISOString(),
+    ...event,
+  });
+  if (realtimeErrorEvents.length > MAX_REALTIME_EVENTS) {
+    realtimeErrorEvents.length = MAX_REALTIME_EVENTS;
+  }
+}
 
 export async function getErrorMonitorConfig(pool: any): Promise<ErrorMonitorConfig> {
   if (!pool) return { ...cachedMonitorConfig };
@@ -611,6 +638,15 @@ export async function recordIntegrationError(
     .digest('hex')
     .slice(0, 16);
 
+  // Always record into realtime ring-buffer stream for live monitoring
+  pushRealtimeErrorEvent({
+    integration: input.integration,
+    severity,
+    action: cleanAction,
+    message: cleanMessage,
+    details: cleanDetails,
+  });
+
   // In-memory rate guard (max once per 3 seconds for identical errors)
   const nowMs = Date.now();
   const recentHit = lastKnownIntegrationErrors.get(fingerprint);
@@ -995,15 +1031,17 @@ export function installGlobalErrorHooks(pool: any): void {
       const joined = args
         .map((a) => (a instanceof Error ? `${a.message}` : typeof a === 'object' ? JSON.stringify(a) : String(a)))
         .join(' ');
-      if (!joined.includes('[ErrorMonitor]') && !joined.includes('[Email Error]')) {
+      if (!joined.includes('[ErrorMonitor]')) {
+        const isEmailLog = joined.includes('[Email Error]');
         const errObj = args.find((a) => a instanceof Error) as Error | undefined;
-        const integration = classifyIntegrationFromMessage(joined);
+        const integration = isEmailLog ? 'email' : classifyIntegrationFromMessage(joined);
         recordIntegrationError(pool, {
           integration,
-          action: 'auto_console_error',
+          action: isEmailLog ? 'email:send' : 'auto_console_error',
           message: joined,
           stack: errObj?.stack,
           severity: integration === 'database' || integration === 'duitku' ? 'critical' : 'error',
+          skipEmailDispatch: isEmailLog,
         }).catch(() => {});
       }
     } catch {

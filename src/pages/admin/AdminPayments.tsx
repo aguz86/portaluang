@@ -42,6 +42,11 @@ export const AdminPayments: React.FC = () => {
           Authorization: `Bearer ${getToken()}`,
         },
       });
+      if (res.status === 401) {
+        localStorage.removeItem('admin_token');
+        window.location.href = '/admin/login?expired=1';
+        return;
+      }
       const data = await res.json();
       if (data.success) {
         setTransactions(data.transactions || []);

@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import dotenv from 'dotenv';
 import fs from 'fs';
 import express from 'express';
 import rateLimit from 'express-rate-limit';
@@ -15,10 +16,12 @@ import * as OTPAuth from 'otpauth';
 import QRCode from 'qrcode';
 import {
   getDuitkuConfig,
+  getDuitkuEnvFromServer,
   generateDuitkuInquirySignature,
   verifyDuitkuCallbackSignature,
   generateDuitkuStatusSignature,
   DUITKU_CHANNELS,
+  resolveDuitkuChannel,
   getAllTransactions,
   saveTransaction,
   saveTransactionsBatch,
@@ -41,6 +44,7 @@ import {
   saveErrorMonitorConfig,
   getSystemErrorLogs,
   getErrorReportHistory,
+  getRealtimeErrorEvents,
   parseDeveloperEmails,
   recordIntegrationError,
   markIntegrationRecovered,
@@ -62,6 +66,14 @@ import {
   verifyPayloadWebhookSecret,
   maskPayloadUrl,
 } from './server/payloadCms';
+const envFilePath = path.resolve(process.cwd(), '.env');
+if (fs.existsSync(envFilePath)) {
+  dotenv.config({ path: envFilePath, override: false });
+}
+console.log(
+  `[ENV Check] cwd=${process.cwd()} | .env=${fs.existsSync(envFilePath) ? 'FOUND' : 'MISSING'} | DB=${Boolean((process.env.DATABASE_URL || '').trim())} | DUITKU=${Boolean((process.env.DUITKU_PRODUCTION_MERCHANT_CODE || process.env.DUITKU_SANDBOX_MERCHANT_CODE || process.env.DUITKU_MERCHANT_CODE || '').trim() && (process.env.DUITKU_PRODUCTION_API_KEY || process.env.DUITKU_SANDBOX_API_KEY || process.env.DUITKU_API_KEY || '').trim())} (${getDuitkuEnvFromServer().toUpperCase()}) | TG=${Boolean((process.env.TELEGRAM_BOT_TOKEN || '').trim())} | AI=${Boolean((process.env.OPENROUTER_API_KEY || process.env.GEMINI_API_KEY || '').trim())}`
+);
+
 const appStateDb = new Map();
 
 let pool: any = null;
@@ -122,6 +134,19 @@ if (process.env.DATABASE_URL) {
       const rows: any[] = [];
       for (const [k, v] of appStateDb.entries()) {
         if (typeof k === 'string' && k.startsWith('user_profile_')) {
+          try {
+            rows.push({ id: k, data: typeof v === 'string' ? JSON.parse(v) : v });
+          } catch (e) {
+            rows.push({ id: k, data: v });
+          }
+        }
+      }
+      return { rows };
+    }
+    if (typeof queryStr === "string" && queryStr.includes("id LIKE '%@%'")) {
+      const rows: any[] = [];
+      for (const [k, v] of appStateDb.entries()) {
+        if (typeof k === 'string' && k.includes('@') && !k.startsWith('user_profile_')) {
           try {
             rows.push({ id: k, data: typeof v === 'string' ? JSON.parse(v) : v });
           } catch (e) {
@@ -286,7 +311,7 @@ async function startServer() {
         return res.json({ success: false, note: 'CAPI not configured in ENV' });
       }
 
-      const fetch = (await import('node-fetch')).default || globalThis.fetch;
+      const fetch = globalThis.fetch;
       const unixTime = Math.floor(Date.now() / 1000);
       
       const payload = {
@@ -353,8 +378,12 @@ async function startServer() {
     }
   });
 
-  // Admin Authentication & TOTP State (secrets from process.env with runtime-generated fallbacks)
-  const ADMIN_AUTH_TOKEN = process.env.ADMIN_SESSION_SECRET || crypto.randomBytes(32).toString('hex');
+  // Admin Authentication & TOTP State (secrets from process.env with deterministic fallback across restarts)
+  const fallbackAdminSeed = (process.env.ENCRYPTION_KEY || process.env.ADMIN_PASSWORD || process.env.DATABASE_URL || '').trim();
+  const ADMIN_AUTH_TOKEN = (process.env.ADMIN_SESSION_SECRET || '').trim()
+    || (fallbackAdminSeed
+      ? crypto.createHmac('sha256', fallbackAdminSeed).update('portal_uang_admin_session_v1').digest('hex')
+      : crypto.randomBytes(32).toString('hex'));
   const ADMIN_TOTP_SECRET = (process.env.ADMIN_TOTP_SECRET || '').trim() || new OTPAuth.Secret({ size: 20 }).base32;
   let ADMIN_TOTP_ENABLED = Boolean(process.env.ADMIN_TOTP_SECRET);
 
@@ -408,23 +437,73 @@ async function startServer() {
     }
   });
 
+  const normalizeIp = (raw: string) => raw.trim().replace(/^::ffff:/i, '');
+
+  const extractClientIps = (req: express.Request): string[] => {
+    const candidates: string[] = [];
+    const cfIp = req.headers['cf-connecting-ip'];
+    if (typeof cfIp === 'string' && cfIp.trim()) candidates.push(normalizeIp(cfIp));
+    const xff = req.headers['x-forwarded-for'];
+    if (typeof xff === 'string') {
+      xff.split(',').forEach((part) => {
+        const clean = normalizeIp(part);
+        if (clean) candidates.push(clean);
+      });
+    } else if (Array.isArray(xff)) {
+      xff.forEach((item) => {
+        String(item)
+          .split(',')
+          .forEach((part) => {
+            const clean = normalizeIp(part);
+            if (clean) candidates.push(clean);
+          });
+      });
+    }
+    if (req.ip) candidates.push(normalizeIp(req.ip));
+    if (req.socket?.remoteAddress) candidates.push(normalizeIp(req.socket.remoteAddress));
+    return Array.from(new Set(candidates.filter(Boolean)));
+  };
+
+  const getPrimaryClientIp = (req: express.Request): string => {
+    const list = extractClientIps(req);
+    return list[0] || '';
+  };
+
+  const getAdminIpWhitelistInfo = (dbWhitelistRaw?: string) => {
+    const envIps = (process.env.ADMIN_IP_WHITELIST || '')
+      .split(',')
+      .map((ip) => normalizeIp(ip))
+      .filter(Boolean);
+    const dbIps = String(dbWhitelistRaw || '')
+      .split(',')
+      .map((ip) => normalizeIp(ip))
+      .filter(Boolean);
+    const combined = Array.from(new Set([...envIps, ...dbIps]));
+    const allowAll = combined.includes('*') || combined.length === 0;
+    return { envIps, dbIps, combined, allowAll };
+  };
+
   // Admin Authentication
   app.post('/api/admin/login', async (req, res) => {
     try {
-      const clientIp = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || '';
-      
+      const clientIps = extractClientIps(req);
+      const primaryIp = clientIps[0] || '';
+
       const configResult = await pool.query('SELECT data FROM app_state WHERE id = $1', ['global_settings']);
       const config = configResult.rows.length > 0 ? configResult.rows[0].data : {};
-      
-      const whitelistedIpsRaw = (config.adminIpWhitelist || '').split(',').map((ip: string) => ip.trim()).filter(Boolean);
-      const whitelistedIps = whitelistedIpsRaw.length > 0 ? whitelistedIpsRaw : ['114.79.20.150'];
-      
-      let isAllowed = clientIp.includes('127.0.0.1') || clientIp.includes('::1') || clientIp.includes('localhost');
-      if (!isAllowed) {
-        isAllowed = whitelistedIps.some((ip: string) => clientIp.includes(ip));
-      }
+
+      const { combined: whitelistedIps, allowAll } = getAdminIpWhitelistInfo(config.adminIpWhitelist);
+
+      const isLocalhost = clientIps.some(
+        (ip) => ip === '127.0.0.1' || ip === '::1' || ip.toLowerCase() === 'localhost'
+      );
+      const isAllowed =
+        isLocalhost ||
+        allowAll ||
+        clientIps.some((clientIp) => whitelistedIps.includes(clientIp));
 
       if (!isAllowed) {
+        console.warn(`[Admin Login Blocked] Client IP [${clientIps.join(', ')}] not in whitelist [${whitelistedIps.join(', ')}]`);
         return res.status(401).json({ success: false, error: 'Invalid credentials or IP not whitelisted.' });
       }
 
@@ -475,6 +554,11 @@ async function startServer() {
   };
 
   app.use('/api/admin', adminAuthMiddleware);
+
+  // Verify current admin Bearer token is still valid
+  app.get('/api/admin/session-check', (_req, res) => {
+    res.json({ success: true, authenticated: true });
+  });
 
   // API Route: Admin 2FA Setup (never exposes raw TOTP secret string to client)
   app.get('/api/admin/2fa/setup', async (req, res) => {
@@ -628,7 +712,7 @@ async function startServer() {
         appVersion: d.appVersion || '1.0.0',
         supportEmail: d.supportEmail || 'support@portaluang.id',
         aiName: d.aiName || 'Portal Uang Advisor',
-        aiRoleTitle: d.aiRoleTitle || 'AI Wealth Strateist',
+        aiRoleTitle: d.aiRoleTitle || 'AI Wealth Strategist',
         aiTone: d.aiTone || 'professional_supportive',
         aiSystemPrompt: d.aiSystemPrompt || '',
         heroTitle1: d.heroTitle1 || 'Tinggalkan Spreadsheet Rumit.',
@@ -1062,6 +1146,7 @@ async function startServer() {
   });
 
   const SECRET_SETTING_FIELDS = [
+    'duitkuEnv',
     'duitkuSandboxMerchantCode',
     'duitkuSandboxApiKey',
     'duitkuProductionMerchantCode',
@@ -1084,27 +1169,34 @@ async function startServer() {
     'geminiApiKey',
   ];
 
-  const getIntegrationEnvStatus = () => ({
-    database: Boolean(process.env.DATABASE_URL),
-    duitkuSandbox: Boolean(
-      (process.env.DUITKU_SANDBOX_MERCHANT_CODE || process.env.DUITKU_MERCHANT_CODE) &&
-      (process.env.DUITKU_SANDBOX_API_KEY || process.env.DUITKU_API_KEY)
-    ),
-    duitkuProduction: Boolean(
-      (process.env.DUITKU_PRODUCTION_MERCHANT_CODE || process.env.DUITKU_MERCHANT_CODE) &&
-      (process.env.DUITKU_PRODUCTION_API_KEY || process.env.DUITKU_API_KEY)
-    ),
-    smtp: Boolean(
-      process.env.SMTP_HOST &&
-      (process.env.SMTP_NO_AUTH === 'true' || (process.env.SMTP_USER && process.env.SMTP_PASS))
-    ),
-    freeResend: Boolean(process.env.RESEND_BASE_URL && process.env.RESEND_API_KEY),
-    telegramBot: Boolean(process.env.TELEGRAM_BOT_TOKEN),
-    metaPixel: Boolean(process.env.META_PIXEL_ID),
-    metaCapi: Boolean(process.env.META_CAPI_TOKEN),
-    aiEngine: Boolean(process.env.OPENROUTER_API_KEY || process.env.GEMINI_API_KEY),
-    payloadCms: Boolean(getPayloadConfig().configured),
-  });
+  const getIntegrationEnvStatus = () => {
+    const adminWhitelistInfo = getAdminIpWhitelistInfo('');
+    return {
+      database: Boolean(process.env.DATABASE_URL),
+      duitkuEnv: getDuitkuEnvFromServer(),
+      duitkuEnvSetInEnv: Boolean((process.env.DUITKU_ENV || '').trim()),
+      duitkuSandbox: Boolean(
+        (process.env.DUITKU_SANDBOX_MERCHANT_CODE || process.env.DUITKU_MERCHANT_CODE) &&
+        (process.env.DUITKU_SANDBOX_API_KEY || process.env.DUITKU_API_KEY)
+      ),
+      duitkuProduction: Boolean(
+        (process.env.DUITKU_PRODUCTION_MERCHANT_CODE || process.env.DUITKU_MERCHANT_CODE) &&
+        (process.env.DUITKU_PRODUCTION_API_KEY || process.env.DUITKU_API_KEY)
+      ),
+      smtp: Boolean(
+        process.env.SMTP_HOST &&
+        (process.env.SMTP_NO_AUTH === 'true' || (process.env.SMTP_USER && process.env.SMTP_PASS))
+      ),
+      freeResend: Boolean(process.env.RESEND_BASE_URL && process.env.RESEND_API_KEY),
+      telegramBot: Boolean(process.env.TELEGRAM_BOT_TOKEN),
+      metaPixel: Boolean(process.env.META_PIXEL_ID),
+      metaCapi: Boolean(process.env.META_CAPI_TOKEN),
+      aiEngine: Boolean(process.env.OPENROUTER_API_KEY || process.env.GEMINI_API_KEY),
+      payloadCms: Boolean(getPayloadConfig().configured),
+      adminIpWhitelist: adminWhitelistInfo.envIps.length > 0,
+      adminIpWhitelistIps: adminWhitelistInfo.envIps,
+    };
+  };
 
   app.get('/api/admin/settings', async (req, res) => {
     try {
@@ -1114,7 +1206,12 @@ async function startServer() {
       // Never return secrets/keys/tokens to dashboard UI
       SECRET_SETTING_FIELDS.forEach((field) => delete data[field]);
 
-      res.json({ success: true, data, envStatus: getIntegrationEnvStatus() });
+      res.json({
+        success: true,
+        data,
+        envStatus: getIntegrationEnvStatus(),
+        detectedClientIp: getPrimaryClientIp(req),
+      });
     } catch (err: any) {
       console.error("Admin settings error:", err); res.status(500).json({ success: false, error: err.message });
     }
@@ -1140,7 +1237,11 @@ async function startServer() {
          DO UPDATE SET data = $2, updated_at = NOW()`,
         ['global_settings', JSON.stringify(data)]
       );
-      res.json({ success: true, envStatus: getIntegrationEnvStatus() });
+      res.json({
+        success: true,
+        envStatus: getIntegrationEnvStatus(),
+        detectedClientIp: getPrimaryClientIp(req),
+      });
     } catch (err: any) {
       console.error("Admin settings error:", err); res.status(500).json({ success: false, error: err.message });
     }
@@ -1412,6 +1513,310 @@ async function startServer() {
       };
       cachedIntegrationsStatus = { timestamp: now, payload };
       res.json(payload);
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // Unified Connection Monitoring & Realtime Error Stream Endpoint
+  app.get('/api/admin/connection-monitor', async (req, res) => {
+    try {
+      const forceRefresh = req.query.refresh === '1' || req.query.refresh === 'true';
+      const now = Date.now();
+
+      const timedCheck = async (fn: () => Promise<any>) => {
+        const start = Date.now();
+        const result = await fn();
+        return { ...result, latencyMs: Date.now() - start };
+      };
+
+      const isValidEnvSecret = (val?: string) => {
+        const trimmed = (val || '').trim();
+        if (!trimmed) return false;
+        const lower = trimmed.toLowerCase();
+        return (
+          !lower.startsWith('my_') &&
+          !lower.startsWith('your_') &&
+          !lower.includes('placeholder') &&
+          trimmed.length >= 6
+        );
+      };
+
+      const connections = await Promise.all([
+        timedCheck(async () => {
+          const hasDbUrl = Boolean((process.env.DATABASE_URL || '').trim());
+          if (!hasDbUrl) {
+            return {
+              key: 'database',
+              name: 'Database Supabase',
+              envVars: 'DATABASE_URL',
+              configured: false,
+              connected: false,
+              detail: 'DATABASE_URL belum diset (berjalan pada memori lokal sementara)',
+            };
+          }
+          try {
+            await pool.query('SELECT 1');
+            return {
+              key: 'database',
+              name: 'Database Supabase',
+              envVars: 'DATABASE_URL',
+              configured: true,
+              connected: true,
+              detail: 'PostgreSQL Supabase terhubung & responsif',
+            };
+          } catch (err: any) {
+            return {
+              key: 'database',
+              name: 'Database Supabase',
+              envVars: 'DATABASE_URL',
+              configured: true,
+              connected: false,
+              detail: err?.message || 'Koneksi ke Supabase gagal',
+            };
+          }
+        }),
+        timedCheck(async () => {
+          try {
+            const cfg = await getDuitkuConfig(pool);
+            if (!cfg.merchantCode || !cfg.apiKey) {
+              return {
+                key: 'duitku',
+                name: 'Duitku Payment Gateway',
+                envVars: 'DUITKU_ENV, DUITKU_*_MERCHANT_CODE, DUITKU_*_API_KEY',
+                configured: false,
+                connected: false,
+                detail: `Kredensial Duitku (${cfg.env}) belum diset di ENV`,
+              };
+            }
+            const amount = '10000';
+            const d = new Date();
+            const pad = (n: number) => (n < 10 ? '0' + n : String(n));
+            const datetime = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+            const signature = crypto.createHash('sha256').update(`${cfg.merchantCode}${amount}${datetime}${cfg.apiKey}`).digest('hex');
+            const baseUrl = cfg.env === 'production'
+              ? 'https://passport.duitku.com/webapi/api/merchant'
+              : 'https://sandbox.duitku.com/webapi/api/merchant';
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), 5000);
+            const resp = await fetch(`${baseUrl}/paymentmethod/getpaymentmethod`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ merchantcode: cfg.merchantCode, amount, datetime, signature }),
+              signal: controller.signal,
+            });
+            clearTimeout(timer);
+            const data: any = await resp.json().catch(() => ({}));
+            const ok = resp.ok && Array.isArray(data?.paymentFee);
+            return {
+              key: 'duitku',
+              name: 'Duitku Payment Gateway',
+              envVars: 'DUITKU_ENV, DUITKU_*_MERCHANT_CODE, DUITKU_*_API_KEY',
+              configured: true,
+              connected: ok,
+              detail: ok
+                ? `Mode ${cfg.env.toUpperCase()} terhubung (${data.paymentFee.length} kanal bayar aktif)`
+                : data?.Message || `Gagal terhubung ke API Duitku (${cfg.env})`,
+            };
+          } catch (err: any) {
+            return {
+              key: 'duitku',
+              name: 'Duitku Payment Gateway',
+              envVars: 'DUITKU_ENV, DUITKU_*_MERCHANT_CODE, DUITKU_*_API_KEY',
+              configured: true,
+              connected: false,
+              detail: err?.message || 'Timeout / gagal menghubungi server Duitku',
+            };
+          }
+        }),
+        timedCheck(async () => {
+          try {
+            const { verifyEmailTransport } = await import('./server/email');
+            const emailCfg = await getEmailConfig(pool);
+            const configured = isEmailConfigured(emailCfg);
+            if (!configured) {
+              return {
+                key: 'email',
+                name: 'Email Gateway (SMTP / FreeResend)',
+                envVars: 'SMTP_* atau RESEND_BASE_URL + RESEND_API_KEY',
+                configured: false,
+                connected: false,
+                detail: 'SMTP_* atau RESEND_* belum diset di ENV (opsional)',
+              };
+            }
+            const health = await verifyEmailTransport(pool);
+            return {
+              key: 'email',
+              name: 'Email Gateway (SMTP / FreeResend)',
+              envVars: 'SMTP_* atau RESEND_BASE_URL + RESEND_API_KEY',
+              configured: true,
+              connected: Boolean(health.ok),
+              detail: health.ok
+                ? `Transport ${(health.provider || 'SMTP').toUpperCase()} terhubung`
+                : health.error || 'Verifikasi server email gagal',
+            };
+          } catch (err: any) {
+            return {
+              key: 'email',
+              name: 'Email Gateway (SMTP / FreeResend)',
+              envVars: 'SMTP_* atau RESEND_BASE_URL + RESEND_API_KEY',
+              configured: true,
+              connected: false,
+              detail: err?.message || 'Gagal memverifikasi Email Gateway',
+            };
+          }
+        }),
+        timedCheck(async () => {
+          const tgToken = (process.env.TELEGRAM_BOT_TOKEN || '').trim();
+          if (!isValidEnvSecret(tgToken)) {
+            return {
+              key: 'telegram',
+              name: 'Telegram Bot API',
+              envVars: 'TELEGRAM_BOT_TOKEN, TELEGRAM_BOT_USERNAME',
+              configured: false,
+              connected: false,
+              detail: 'TELEGRAM_BOT_TOKEN belum diset di ENV',
+            };
+          }
+          try {
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), 4500);
+            const tgRes = await fetch(`https://api.telegram.org/bot${tgToken}/getMe`, { signal: controller.signal });
+            clearTimeout(timer);
+            const tgJson: any = await tgRes.json().catch(() => ({}));
+            const ok = Boolean(tgRes.ok && tgJson.ok && tgJson.result?.username);
+            return {
+              key: 'telegram',
+              name: 'Telegram Bot API',
+              envVars: 'TELEGRAM_BOT_TOKEN, TELEGRAM_BOT_USERNAME',
+              configured: true,
+              connected: ok,
+              detail: ok
+                ? `Bot @${tgJson.result.username} online`
+                : tgJson?.description || `Telegram API HTTP ${tgRes.status}`,
+            };
+          } catch (err: any) {
+            return {
+              key: 'telegram',
+              name: 'Telegram Bot API',
+              envVars: 'TELEGRAM_BOT_TOKEN, TELEGRAM_BOT_USERNAME',
+              configured: true,
+              connected: false,
+              detail: err?.message || 'Gagal menghubungi API Telegram',
+            };
+          }
+        }),
+        timedCheck(async () => {
+          const openRouterValid = isValidEnvSecret(process.env.OPENROUTER_API_KEY);
+          const geminiValid = isValidEnvSecret(process.env.GEMINI_API_KEY);
+          const configured = openRouterValid || geminiValid;
+          const activeLabel = openRouterValid
+            ? `OpenRouter (${process.env.OPENROUTER_MODEL || 'deepseek/deepseek-chat'})`
+            : geminiValid
+            ? 'Google Gemini API'
+            : 'Belum ada API Key AI di ENV';
+          return {
+            key: 'ai',
+            name: 'AI Advisor Engine',
+            envVars: 'OPENROUTER_API_KEY / GEMINI_API_KEY',
+            configured,
+            connected: configured,
+            detail: configured ? `${activeLabel} siap digunakan` : activeLabel,
+          };
+        }),
+        timedCheck(async () => {
+          const hasPixel = isValidEnvSecret(process.env.META_PIXEL_ID);
+          const hasCapi = isValidEnvSecret(process.env.META_CAPI_TOKEN);
+          const configured = hasPixel || hasCapi;
+          const connected = hasPixel && hasCapi;
+          return {
+            key: 'meta',
+            name: 'Meta Pixel & CAPI',
+            envVars: 'META_PIXEL_ID, META_CAPI_TOKEN',
+            configured,
+            connected,
+            detail: connected
+              ? 'Meta Pixel & Conversions API aktif via ENV'
+              : hasPixel
+              ? 'Pixel aktif, META_CAPI_TOKEN belum diset'
+              : 'META_PIXEL_ID & META_CAPI_TOKEN belum diset di ENV',
+          };
+        }),
+        timedCheck(async () => {
+          try {
+            const cmsSettings = await getCmsSettings(pool);
+            const health = await checkPayloadHealth(cmsSettings);
+            return {
+              key: 'payloadCms',
+              name: 'Payload CMS (Headless)',
+              envVars: 'PAYLOAD_CMS_URL, PAYLOAD_CMS_API_KEY',
+              configured: health.configured,
+              connected: health.connected,
+              detail: health.detail,
+            };
+          } catch (err: any) {
+            return {
+              key: 'payloadCms',
+              name: 'Payload CMS (Headless)',
+              envVars: 'PAYLOAD_CMS_URL, PAYLOAD_CMS_API_KEY',
+              configured: Boolean(process.env.PAYLOAD_CMS_URL),
+              connected: false,
+              detail: err?.message || 'Gagal memeriksa Payload CMS',
+            };
+          }
+        }),
+        timedCheck(async () => {
+          try {
+            const quote: any = await yahooFinance.quote('BBCA.JK');
+            const ok = Boolean(quote && (quote.regularMarketPrice || quote.symbol));
+            return {
+              key: 'market_data',
+              name: 'Market Data (Yahoo Finance)',
+              envVars: 'Public Feed (Tanpa API Key)',
+              configured: true,
+              connected: ok,
+              detail: ok ? `Feed aktif (BBCA.JK: Rp ${Number(quote.regularMarketPrice || 0).toLocaleString('id-ID')})` : 'Respon market kosong',
+            };
+          } catch (err: any) {
+            return {
+              key: 'market_data',
+              name: 'Market Data (Yahoo Finance)',
+              envVars: 'Public Feed (Tanpa API Key)',
+              configured: true,
+              connected: false,
+              detail: err?.message || 'Gagal mengambil data pasar Yahoo Finance',
+            };
+          }
+        }),
+      ]);
+
+      const [errorLogs, realtimeEvents] = await Promise.all([
+        getSystemErrorLogs(pool),
+        Promise.resolve(getRealtimeErrorEvents()),
+      ]);
+
+      const connectedCount = connections.filter((c) => c.connected).length;
+      const openErrorCount = errorLogs.filter((l) => l.status === 'open').length;
+
+      res.json({
+        success: true,
+        checkedAt: new Date(now).toISOString(),
+        forceRefresh,
+        connectedCount,
+        totalCount: connections.length,
+        openErrorCount,
+        runtime: {
+          envFileFound: fs.existsSync(envFilePath),
+          cwd: process.cwd(),
+          nodeVersion: process.version,
+          uptimeSeconds: Math.floor(process.uptime()),
+          appUrl: process.env.APP_URL || '',
+        },
+        connections,
+        errorLogs,
+        realtimeEvents,
+        integrationsMeta: INTEGRATION_META,
+      });
     } catch (err: any) {
       res.status(500).json({ success: false, error: err.message });
     }
@@ -2522,7 +2927,7 @@ async function startServer() {
       }
       // Fetch dynamic AI customization from global_settings
       let currentAiName = 'Portal Uang Advisor';
-      let currentAiRole = 'AI Wealth Strateist';
+      let currentAiRole = 'AI Wealth Strategist';
       let currentAiTone = 'professional_supportive';
       let customSystemPrompt = '';
 
@@ -2688,7 +3093,7 @@ Berikan panduan pelunasan langkah demi langkah yang jelas dengan simulasi matema
         let lmPrice = null;
         
         try {
-          const fetch = (await import('node-fetch')).default || globalThis.fetch;
+          const fetch = globalThis.fetch;
           const response = await fetch('https://www.logammulia.com/id/harga-emas-hari-ini', {
             headers: {
               'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
@@ -2842,20 +3247,28 @@ Berikan panduan pelunasan langkah demi langkah yang jelas dengan simulasi matema
           ? 'https://passport.duitku.com/webapi/api/merchant' 
           : 'https://sandbox.duitku.com/webapi/api/merchant';
 
-      const fetch = (await import('node-fetch')).default || globalThis.fetch;
+      const fetch = globalThis.fetch;
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 8000);
       const response = await fetch(`${baseUrl}/paymentmethod/getpaymentmethod`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
+        signal: controller.signal
       });
+      clearTimeout(timer);
       
-      const data = await response.json();
+      const data: any = await response.json().catch(() => ({}));
       
-      if (data.paymentFee && Array.isArray(data.paymentFee)) {
+      if (response.ok && data.paymentFee && Array.isArray(data.paymentFee)) {
         return res.json({ success: true, methods: data.paymentFee });
       }
       
-      res.json({ success: true, methods: null, message: data.Message || 'Failed to fetch' });
+      res.status(response.ok ? 400 : response.status).json({
+        success: false,
+        methods: null,
+        error: data.Message || data.responseMessage || `Gagal memuat metode pembayaran dari Duitku (${config.env})`,
+      });
     } catch (err: any) {
       console.error('Error fetching payment methods:', err);
       res.status(500).json({ success: false, error: err.message });
@@ -2870,6 +3283,7 @@ Berikan panduan pelunasan langkah demi langkah yang jelas dengan simulasi matema
         planName,
         amount,
         paymentMethod,
+        paymentMethodName,
         email,
         customerName,
         phoneNumber,
@@ -2881,6 +3295,12 @@ Berikan panduan pelunasan langkah demi langkah yang jelas dengan simulasi matema
       }
 
       const config = await getDuitkuConfig(pool);
+      if (!config.merchantCode || !config.apiKey) {
+        return res.status(503).json({
+          success: false,
+          error: `Kredensial Duitku (${config.env}) belum dikonfigurasi di server (.env).`,
+        });
+      }
 
       if (config.env === 'sandbox' && config.sandboxWhitelist && config.sandboxWhitelist.length > 0) {
         const userEmail = email.toLowerCase().trim();
@@ -2897,8 +3317,8 @@ Berikan panduan pelunasan langkah demi langkah yang jelas dengan simulasi matema
       const randomPart = Math.floor(100000 + Math.random() * 900000);
       const merchantOrderId = `INV-${datePart}-${randomPart}`;
 
-      // Restore channelInfo dynamically
-      const channelInfo = (paymentMethod && paymentMethod.length === 2) ? (Object.values(DUITKU_CHANNELS).find(c => c.code === paymentMethod) || DUITKU_CHANNELS['qris']) : (DUITKU_CHANNELS[paymentMethod] || DUITKU_CHANNELS['qris']);
+      // Resolve channel without collapsing unknown 2-letter Duitku codes into QRIS
+      const channelInfo = resolveDuitkuChannel(paymentMethod, paymentMethodName);
       const channelCode = channelInfo.code;
 
       // Compute MD5 signature for Duitku Inquiry: MD5(merchantCode + merchantOrderId + paymentAmount + apiKey)
@@ -2937,28 +3357,41 @@ Berikan panduan pelunasan langkah demi langkah yang jelas dengan simulasi matema
 
       // Attempt live call to Duitku API
       try {
-        const fetch = (await import('node-fetch')).default || globalThis.fetch;
+        const fetch = globalThis.fetch;
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 10000);
         const apiRes = await fetch(`${baseUrl}/v2/inquiry`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(inquiryPayload)
+          body: JSON.stringify(inquiryPayload),
+          signal: controller.signal
         });
+        clearTimeout(timer);
         
         if (apiRes.ok) {
           duitkuResponseData = await apiRes.json();
           markIntegrationRecovered(pool, 'duitku').catch(() => {});
-        } else if (config.env === 'production') {
+        } else {
           const errText = await apiRes.text().catch(() => apiRes.statusText);
-          recordIntegrationError(pool, {
-            integration: 'duitku',
-            action: 'POST /api/payment/duitku/create-invoice',
-            message: `Duitku Production API HTTP ${apiRes.status}: ${errText}`,
-            details: `Order: ${merchantOrderId} | Email: ${email}`,
-            severity: 'critical',
-          }).catch(() => {});
+          let parsedErr: any = {};
+          try { parsedErr = JSON.parse(errText); } catch {}
+          const errMsg = parsedErr?.Message || parsedErr?.statusMessage || errText || apiRes.statusText;
+          if (config.env === 'production') {
+            recordIntegrationError(pool, {
+              integration: 'duitku',
+              action: 'POST /api/payment/duitku/create-invoice',
+              message: `Duitku Production API HTTP ${apiRes.status}: ${errMsg}`,
+              details: `Order: ${merchantOrderId} | Channel: ${channelCode} | Email: ${email}`,
+              severity: 'critical',
+            }).catch(() => {});
+          }
+          return res.status(apiRes.status >= 400 ? apiRes.status : 502).json({
+            success: false,
+            error: `Duitku menolak pembuatan tagihan (${channelCode}): ${errMsg}`,
+          });
         }
       } catch (callErr: any) {
-        console.warn('Direct Duitku API call failed or in testing environment, creating sandbox transaction payload:', callErr);
+        console.warn('Direct Duitku API call failed:', callErr);
         if (config.env === 'production') {
           recordIntegrationError(pool, {
             integration: 'duitku',
@@ -2968,6 +3401,10 @@ Berikan panduan pelunasan langkah demi langkah yang jelas dengan simulasi matema
             stack: callErr?.stack,
             severity: 'critical',
           }).catch(() => {});
+          return res.status(502).json({
+            success: false,
+            error: `Gagal menghubungi server Duitku (${config.env}): ${callErr?.message || 'Timeout'}`,
+          });
         }
       }
 
@@ -3172,7 +3609,7 @@ Berikan panduan pelunasan langkah demi langkah yang jelas dengan simulasi matema
             ? 'https://passport.duitku.com/webapi/api/merchant' 
             : 'https://sandbox.duitku.com/webapi/api/merchant';
 
-          const fetch = (await import('node-fetch')).default || globalThis.fetch;
+          const fetch = globalThis.fetch;
           const statusRes = await fetch(`${baseUrl}/transactionStatus`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -3262,6 +3699,168 @@ Berikan panduan pelunasan langkah demi langkah yang jelas dengan simulasi matema
 
   const telegramLinkStore = new Map<string, TelegramLinkSession>();
 
+  const getConfiguredAppBaseUrl = (req?: express.Request): string => {
+    const rawEnv = (process.env.APP_URL || '').trim().replace(/\/+$/, '');
+    if (
+      rawEnv &&
+      /^https?:\/\//i.test(rawEnv) &&
+      !rawEnv.includes('MY_APP_URL') &&
+      !rawEnv.includes('YOUR_')
+    ) {
+      return rawEnv;
+    }
+    if (req) {
+      const protoHeader = req.headers['x-forwarded-proto'];
+      const proto = (Array.isArray(protoHeader) ? protoHeader[0] : protoHeader || req.protocol || 'https')
+        .split(',')[0]
+        .trim();
+      const host = req.get('host');
+      if (host) {
+        return `${proto}://${host}`;
+      }
+    }
+    return 'https://portaluang.id';
+  };
+
+  const getConfiguredTelegramWebhookUrl = (req?: express.Request): string => {
+    const rawWebhookEnv = (process.env.TELEGRAM_WEBHOOK_URL || '').trim().replace(/\/+$/, '');
+    if (rawWebhookEnv && /^https?:\/\//i.test(rawWebhookEnv)) {
+      return rawWebhookEnv;
+    }
+    return `${getConfiguredAppBaseUrl(req)}/api/telegram/webhook`;
+  };
+
+  const getTelegramWebhookStatus = async (token: string, expectedWebhookUrl: string) => {
+    if (!token) {
+      return {
+        url: '',
+        isConfiguredOnTelegram: false,
+        isMatch: false,
+        pendingUpdateCount: 0,
+      };
+    }
+    try {
+      const resp = await fetch(`https://api.telegram.org/bot${token}/getWebhookInfo`);
+      const json: any = await resp.json().catch(() => ({}));
+      const result = json?.result || {};
+      const registeredUrl = String(result.url || '').trim();
+      const expectedClean = expectedWebhookUrl.trim().replace(/\/+$/, '');
+      const registeredClean = registeredUrl.replace(/\/+$/, '');
+      return {
+        url: registeredUrl,
+        isConfiguredOnTelegram: Boolean(registeredUrl),
+        isMatch: Boolean(registeredClean && expectedClean && registeredClean === expectedClean),
+        pendingUpdateCount: Number(result.pending_update_count || 0),
+        lastErrorMessage: result.last_error_message || undefined,
+        lastErrorDate: result.last_error_date || undefined,
+      };
+    } catch (err: any) {
+      return {
+        url: '',
+        isConfiguredOnTelegram: false,
+        isMatch: false,
+        pendingUpdateCount: 0,
+        lastErrorMessage: err?.message || 'Gagal membaca getWebhookInfo',
+      };
+    }
+  };
+
+  const syncTelegramBotSetup = async (token: string, webhookUrl?: string) => {
+    if (!token) return null;
+
+    // 1. Register slash command menu inside Telegram
+    try {
+      await fetch(`https://api.telegram.org/bot${token}/setMyCommands`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          commands: [
+            { command: 'start', description: 'Mulai bot & hubungkan akun Portal Uang' },
+            { command: 'status', description: 'Cek status keterhubungan akun Anda' },
+            { command: 'tagihan', description: 'Lihat daftar tagihan belum lunas' },
+            { command: 'ringkasan', description: 'Lihat ringkasan saldo & pengeluaran' },
+            { command: 'bantuan', description: 'Tampilkan daftar perintah bot' },
+          ],
+        }),
+      });
+    } catch (err) {
+      console.error('[Telegram] setMyCommands error:', err);
+    }
+
+    // 2. Register webhook if public HTTPS URL is provided
+    const cleanUrl = (webhookUrl || '').trim();
+    if (
+      cleanUrl &&
+      cleanUrl.startsWith('https://') &&
+      !cleanUrl.includes('localhost') &&
+      !cleanUrl.includes('127.0.0.1')
+    ) {
+      const hookResp = await fetch(`https://api.telegram.org/bot${token}/setWebhook`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          url: cleanUrl,
+          allowed_updates: ['message'],
+          drop_pending_updates: false,
+        }),
+      });
+      const hookJson: any = await hookResp.json().catch(() => ({}));
+      if (!hookJson.ok) {
+        throw new Error(hookJson.description || 'Telegram menolak URL webhook.');
+      }
+    }
+
+    return getTelegramWebhookStatus(token, cleanUrl);
+  };
+
+  const getLinkedTelegramUsers = async (): Promise<Array<{ userId: string; chatId: string; data: any }>> => {
+    const res = await pool.query("SELECT id, data FROM app_state WHERE id LIKE '%@%' AND id NOT LIKE 'user_profile_%'");
+    const list: Array<{ userId: string; chatId: string; data: any }> = [];
+    const seenChats = new Set<string>();
+    for (const row of res.rows) {
+      let userData = row.data;
+      if (typeof userData === 'string') {
+        try {
+          userData = JSON.parse(userData);
+        } catch {
+          continue;
+        }
+      }
+      const chatId = String(userData?.notificationSettings?.telegramChatId || '').trim();
+      if (chatId && !seenChats.has(chatId)) {
+        seenChats.add(chatId);
+        list.push({ userId: String(row.id), chatId, data: userData });
+      }
+    }
+    return list;
+  };
+
+  const findLinkedUserByChatId = async (chatId: string): Promise<{ userId: string; userData: any } | null> => {
+    for (const [_, session] of telegramLinkStore.entries()) {
+      if (session.telegramChatId === chatId && session.status === 'linked') {
+        const userRes = await pool.query('SELECT data FROM app_state WHERE id = $1', [session.userId]);
+        const userData = userRes.rows.length > 0 ? userRes.rows[0].data : null;
+        return { userId: session.userId, userData };
+      }
+    }
+
+    const res = await pool.query("SELECT id, data FROM app_state WHERE id LIKE '%@%' AND id NOT LIKE 'user_profile_%'");
+    for (const row of res.rows) {
+      let userData = row.data;
+      if (typeof userData === 'string') {
+        try {
+          userData = JSON.parse(userData);
+        } catch {
+          continue;
+        }
+      }
+      if (String(userData?.notificationSettings?.telegramChatId || '').trim() === chatId) {
+        return { userId: String(row.id), userData };
+      }
+    }
+    return null;
+  };
+
   // Helper to retrieve bot info strictly from ENV TELEGRAM_BOT_TOKEN
   async function getTelegramBotInfo() {
     try {
@@ -3291,29 +3890,38 @@ Berikan panduan pelunasan langkah demi langkah yang jelas dengan simulasi matema
         }
       }
 
-      if (!username) {
-        username = 'Portal UangBot';
+      if (!username || username.includes(' ')) {
+        username = 'PortalUangBot';
       }
 
       const tokenTrimmed = token;
       return {
         token: tokenTrimmed,
-        username,
+        username: username.replace(/^@/, ''),
         isConfigured: Boolean(tokenTrimmed),
       };
     } catch (err) {
       const fallbackToken = (process.env.TELEGRAM_BOT_TOKEN || '').trim();
-      return { token: fallbackToken, username: 'Portal UangBot', isConfigured: Boolean(fallbackToken) };
+      return { token: fallbackToken, username: 'PortalUangBot', isConfigured: Boolean(fallbackToken) };
     }
   }
 
   app.get('/api/admin/telegram/status', async (req, res) => {
     try {
       const info = await getTelegramBotInfo();
+      const expectedWebhookUrl = getConfiguredTelegramWebhookUrl(req);
+      const [webhook, linkedUsers] = await Promise.all([
+        info.token ? getTelegramWebhookStatus(info.token, expectedWebhookUrl) : Promise.resolve(null),
+        getLinkedTelegramUsers().catch(() => []),
+      ]);
       res.json({
         success: true,
         configured: Boolean(info.token),
         username: info.username,
+        webhook,
+        linkedUsersCount: linkedUsers.length,
+        suggestedWebhookUrl: expectedWebhookUrl,
+        webhookFromEnv: Boolean((process.env.TELEGRAM_WEBHOOK_URL || '').trim()),
       });
     } catch (err: any) {
       res.status(500).json({ success: false, error: err.message });
@@ -3339,13 +3947,53 @@ Berikan panduan pelunasan langkah demi langkah yang jelas dengan simulasi matema
         `INSERT INTO app_state (id, data, updated_at) VALUES ('global_settings', $1, NOW()) ON CONFLICT (id) DO UPDATE SET data = $1, updated_at = NOW()`,
         [JSON.stringify(globalSettings)]
       );
+
+      const envWebhook = (process.env.TELEGRAM_WEBHOOK_URL || '').trim();
+      const candidateWebhook = String(envWebhook || req.body?.webhookUrl || getConfiguredTelegramWebhookUrl(req)).trim();
+      let webhook = null;
+      try {
+        webhook = await syncTelegramBotSetup(token, candidateWebhook);
+      } catch (whErr) {
+        console.warn('[Telegram] Verify webhook sync skipped/failed:', whErr);
+        webhook = await getTelegramWebhookStatus(token, candidateWebhook);
+      }
+
       return res.json({
         success: true,
         username: data.result.username,
         firstName: data.result.first_name,
+        webhook,
       });
     } catch (err: any) {
       return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  app.post('/api/admin/telegram/set-webhook', async (req, res) => {
+    try {
+      const token = (process.env.TELEGRAM_BOT_TOKEN || '').trim();
+      if (!token) {
+        return res.status(400).json({
+          success: false,
+          error: 'TELEGRAM_BOT_TOKEN belum diset pada Environment Variables (.env) server.',
+        });
+      }
+      const envWebhook = (process.env.TELEGRAM_WEBHOOK_URL || '').trim();
+      const targetUrl = String(envWebhook || req.body?.webhookUrl || getConfiguredTelegramWebhookUrl(req)).trim();
+      if (!targetUrl.startsWith('https://')) {
+        return res.status(400).json({
+          success: false,
+          error: `URL Webhook harus menggunakan HTTPS publik (diterima: ${targetUrl}). Telegram tidak menerima HTTP atau localhost.`,
+        });
+      }
+      const webhook = await syncTelegramBotSetup(token, targetUrl);
+      return res.json({
+        success: true,
+        webhook,
+        message: `Webhook Telegram aktif & mengarah ke ${targetUrl}`,
+      });
+    } catch (err: any) {
+      return res.status(400).json({ success: false, error: err.message || 'Gagal mendaftarkan webhook Telegram.' });
     }
   });
 
@@ -3676,16 +4324,83 @@ Berikan panduan pelunasan langkah demi langkah yang jelas dengan simulasi matema
     }
   });
 
-  // 6. Admin Broadcast
+  // 6. Admin Broadcast (Real delivery to all linked Telegram users)
   app.post('/api/admin/telegram/broadcast', async (req, res) => {
     try {
-      const { message } = req.body;
+      const { message } = req.body || {};
+      const cleanMsg = String(message || '').trim();
+      if (!cleanMsg) {
+        return res.status(400).json({ success: false, error: 'Pesan broadcast tidak boleh kosong.' });
+      }
       const botInfo = await getTelegramBotInfo();
-      if (!botInfo.token) return res.status(400).json({ success: false, error: 'Bot belum dikonfigurasi' });
-      
-      res.json({ success: true, message: 'Broadcast initiated' });
+      if (!botInfo.token) {
+        return res.status(400).json({ success: false, error: 'TELEGRAM_BOT_TOKEN belum dikonfigurasi di ENV.' });
+      }
+
+      const targets = await getLinkedTelegramUsers();
+      if (targets.length === 0) {
+        return res.json({
+          success: true,
+          totalTargets: 0,
+          sentCount: 0,
+          failedCount: 0,
+          message: 'Belum ada pengguna yang menghubungkan akun Telegram.',
+        });
+      }
+
+      const formattedText = `📢 <b>PENGUMUMAN PORTAL UANG</b>\n\n${cleanMsg
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')}`;
+
+      let sentCount = 0;
+      let failedCount = 0;
+      let lastError = '';
+
+      for (const target of targets) {
+        try {
+          const tgRes = await fetch(`https://api.telegram.org/bot${botInfo.token}/sendMessage`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              chat_id: target.chatId,
+              text: formattedText,
+              parse_mode: 'HTML',
+            }),
+          });
+          const tgJson: any = await tgRes.json().catch(() => ({}));
+          if (tgRes.ok && tgJson.ok) {
+            sentCount++;
+          } else {
+            failedCount++;
+            lastError = tgJson?.description || `HTTP ${tgRes.status}`;
+          }
+        } catch (err: any) {
+          failedCount++;
+          lastError = err?.message || 'Network error';
+        }
+      }
+
+      if (sentCount > 0) {
+        markIntegrationRecovered(pool, 'telegram').catch(() => {});
+      } else if (failedCount > 0) {
+        recordIntegrationError(pool, {
+          integration: 'telegram',
+          action: 'POST /api/admin/telegram/broadcast',
+          message: lastError || 'Semua pengiriman broadcast Telegram gagal',
+          severity: 'error',
+        }).catch(() => {});
+      }
+
+      return res.json({
+        success: true,
+        totalTargets: targets.length,
+        sentCount,
+        failedCount,
+        message: `Broadcast selesai: ${sentCount} terkirim, ${failedCount} gagal dari total ${targets.length} pengguna terhubung.`,
+      });
     } catch (err: any) {
-      res.status(500).json({ success: false, error: err.message });
+      return res.status(500).json({ success: false, error: err.message });
     }
   });
 
@@ -3695,17 +4410,19 @@ Berikan panduan pelunasan langkah demi langkah yang jelas dengan simulasi matema
       const update = req.body;
       console.log('Telegram Webhook Update Received:', JSON.stringify(update));
 
-      const message = update.message;
+      const message = update?.message;
       if (!message || !message.text) {
         return res.status(200).json({ ok: true });
       }
 
       const chatId = String(message.chat.id);
-      const text = message.text.trim();
+      const rawText = String(message.text || '').trim();
+      const command = rawText.split(/\s+/)[0].split('@')[0].toLowerCase();
       const from = message.from || {};
       const username = from.username || '';
       const firstName = from.first_name || 'Sobat Finansial';
       const botInfo = await getTelegramBotInfo();
+      const appBaseUrl = getConfiguredAppBaseUrl(req);
 
       // Helper to send reply
       const replyMessage = async (msgText: string, parseMode: string = 'HTML') => {
@@ -3726,8 +4443,8 @@ Berikan panduan pelunasan langkah demi langkah yang jelas dengan simulasi matema
       };
 
       // Flow 1: /start <token>
-      if (text && text.startsWith('/start')) {
-        const parts = text.split(/\s+/);
+      if (command === '/start') {
+        const parts = rawText.split(/\s+/);
         if (parts.length > 1) {
           const token = parts[1].trim();
           
@@ -3796,10 +4513,10 @@ Berikan panduan pelunasan langkah demi langkah yang jelas dengan simulasi matema
               `🎉 <b>Akun Portal Uang Berhasil Terhubung!</b>\n\n` +
               `Halo <b>${firstName}</b> (@${username || 'user'}), akun Anda (<code>${session.userId}</code>) kini telah tersinkronisasi secara real-time.\n\n` +
               `🔔 <b>Layanan Notifikasi Aktif:</b>\n` +
-              `• ⏰ Peningat Jatuh Tempo Taihan & Cicilan\n` +
+              `• ⏰ Pengingat Jatuh Tempo Tagihan & Cicilan\n` +
               `• 🎯 Peringatan Batas Anggaran Zero-Based Budgeting\n` +
               `• 📈 Ringkasan & Wawasan Finansial Berkala\n\n` +
-              `💡 <i>Ketik /bantuan untuk melihat daftar perintah bot atau /status untuk melihat status koneksi.</i>`;
+              `💡 <i>Ketik /bantuan untuk melihat daftar perintah bot atau /status untuk mengecek status koneksi.</i>`;
 
             await replyMessage(successMsg);
             return res.status(200).json({ ok: true });
@@ -3813,9 +4530,9 @@ Berikan panduan pelunasan langkah demi langkah yang jelas dengan simulasi matema
           // /start without token
           const welcomeMsg = 
             `👋 <b>Selamat Datang di Bot Portal Uang!</b>\n\n` +
-            `Bot ini bertugas menirimkan notifikasi peningat taihan dan ringkasan finansial langsung ke Telegram Anda.\n\n` +
+            `Bot ini bertugas mengirimkan notifikasi pengingat tagihan dan ringkasan finansial langsung ke Telegram Anda.\n\n` +
             `<b>Cara Menghubungkan:</b>\n` +
-            `1. Buka aplikasi web Portal Uang\n` +
+            `1. Buka aplikasi web <a href="${appBaseUrl}">Portal Uang</a>\n` +
             `2. Masuk ke menu <b>Pengaturan</b>\n` +
             `3. Klik tombol <b>Hubungkan Telegram</b>\n` +
             `4. Klik tautan otomatis atau scan QR Code yang muncul.\n\n` +
@@ -3827,76 +4544,61 @@ Berikan panduan pelunasan langkah demi langkah yang jelas dengan simulasi matema
       }
 
       // Flow 2: /status
-      if (text === '/status') {
-        // Find linked user for this chatId
-        let linkedUserEmail = '';
-        for (const [_, session] of telegramLinkStore.entries()) {
-          if (session.telegramChatId === chatId && session.status === 'linked') {
-            linkedUserEmail = session.userId;
-            break;
-          }
-        }
+      if (command === '/status') {
+        const linked = await findLinkedUserByChatId(chatId);
 
-        if (linkedUserEmail) {
+        if (linked?.userId) {
           await replyMessage(
             `✅ <b>Status: Terhubung & Aktif</b>\n\n` +
-            `• User ID: <code>${linkedUserEmail}</code>\n` +
+            `• Akun: <code>${linked.userId}</code>\n` +
             `• Telegram Chat ID: <code>${chatId}</code>\n` +
             `• Notifikasi: <b>Aktif</b>\n\n` +
-            `Semua peningat taihan dan alarm anggaran akan dikirimkan ke chat ini.`
+            `Semua pengingat tagihan dan alarm anggaran akan dikirimkan ke chat ini.`
           );
         } else {
           await replyMessage(
             `ℹ️ <b>Status: Belum Terhubung</b>\n\n` +
             `Telegram Anda (Chat ID: <code>${chatId}</code>) belum terhubung ke akun Portal Uang manapun.\n\n` +
-            `Silakan buka web Portal Uang > Pengaturan > Hubungkan Telegram.`
+            `Silakan buka <a href="${appBaseUrl}">Portal Uang</a> &gt; Pengaturan &gt; Hubungkan Telegram.`
           );
         }
         return res.status(200).json({ ok: true });
       }
 
       // Flow 3: /bantuan or /help
-      if (text === '/bantuan' || text === '/help') {
+      if (command === '/bantuan' || command === '/help') {
         const helpMsg = 
           `🤖 <b>Daftar Perintah Bot Portal Uang:</b>\n\n` +
           `• /start - Memulai bot & panduan menghubungkan\n` +
           `• /status - Cek status keterhubungan akun Anda\n` +
-          `• /taihan - Cek taihan jatuh tempo terdekat\n` +
+          `• /tagihan - Cek daftar tagihan belum lunas\n` +
+          `• /ringkasan - Lihat ringkasan saldo & pengeluaran bulan ini\n` +
           `• /bantuan - Menampilkan pesan bantuan ini\n\n` +
-          `Aplikasi Web: <a href="https://auraledger.app">Portal Uang Finance OS</a>`;
+          `Aplikasi Web: <a href="${appBaseUrl}">Portal Uang</a>`;
 
         await replyMessage(helpMsg);
         return res.status(200).json({ ok: true });
       }
 
-      // Flow 4: /taihan
-      if (text === '/taihan') {
-        // Find linked user
-        let linkedUserEmail = '';
-        for (const [_, session] of telegramLinkStore.entries()) {
-          if (session.telegramChatId === chatId && session.status === 'linked') {
-            linkedUserEmail = session.userId;
-            break;
-          }
-        }
+      // Flow 4: /tagihan (plus /taihan alias)
+      if (command === '/tagihan' || command === '/taihan') {
+        const linked = await findLinkedUserByChatId(chatId);
 
-        if (!linkedUserEmail) {
+        if (!linked?.userId) {
           await replyMessage(`⚠️ Akun Telegram Anda belum terhubung ke Portal Uang. Ketik /start untuk panduan.`);
           return res.status(200).json({ ok: true });
         }
 
-        const userRes = await pool.query('SELECT data FROM app_state WHERE id = $1', [linkedUserEmail]);
-        const userData = userRes.rows.length > 0 ? userRes.rows[0].data : null;
-        const bills = userData?.bills || [];
+        const bills = Array.isArray(linked.userData?.bills) ? linked.userData.bills : [];
 
         if (bills.length === 0) {
-          await replyMessage(`📅 <b>Taihan:</b> Belum ada daftar taihan yang tersimpan di akun Anda.`);
+          await replyMessage(`📅 <b>Tagihan:</b> Belum ada daftar tagihan yang tersimpan di akun Anda.`);
         } else {
           const unpaidBills = bills.filter((b: any) => !b.isPaid);
           if (unpaidBills.length === 0) {
-            await replyMessage(`🎉 <b>Luar biasa!</b> Seluruh taihan Anda bulan ini sudah lunas.`);
+            await replyMessage(`🎉 <b>Luar biasa!</b> Seluruh tagihan Anda saat ini sudah lunas.`);
           } else {
-            let listText = `📋 <b>Daftar Taihan Belum Lunas (${unpaidBills.length}):</b>\n\n`;
+            let listText = `📋 <b>Daftar Tagihan Belum Lunas (${unpaidBills.length}):</b>\n\n`;
             unpaidBills.forEach((b: any, i: number) => {
               const amountStr = Number(b.amount || 0).toLocaleString('id-ID');
               listText += `${i + 1}. <b>${b.name}</b>: Rp ${amountStr} (Jatuh tempo: ${b.dueDate})\n`;
@@ -3905,6 +4607,39 @@ Berikan panduan pelunasan langkah demi langkah yang jelas dengan simulasi matema
             await replyMessage(listText);
           }
         }
+        return res.status(200).json({ ok: true });
+      }
+
+      // Flow 5: /ringkasan
+      if (command === '/ringkasan') {
+        const linked = await findLinkedUserByChatId(chatId);
+        if (!linked?.userId) {
+          await replyMessage(`⚠️ Akun Telegram Anda belum terhubung ke Portal Uang. Ketik /start untuk panduan.`);
+          return res.status(200).json({ ok: true });
+        }
+
+        const u = linked.userData || {};
+        const accounts = Array.isArray(u.accounts) ? u.accounts : [];
+        const totalBalance = accounts.reduce((sum: number, acc: any) => sum + Number(acc.balance || 0), 0);
+        const bills = Array.isArray(u.bills) ? u.bills : [];
+        const unpaidCount = bills.filter((b: any) => !b.isPaid).length;
+        const unpaidTotal = bills
+          .filter((b: any) => !b.isPaid)
+          .reduce((sum: number, b: any) => sum + Number(b.amount || 0), 0);
+        const nowJakarta = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Jakarta' }));
+        const ymPrefix = `${nowJakarta.getFullYear()}-${String(nowJakarta.getMonth() + 1).padStart(2, '0')}`;
+        const txs = Array.isArray(u.transactions) ? u.transactions : [];
+        const monthExpense = txs
+          .filter((t: any) => t.type === 'expense' && String(t.date || '').startsWith(ymPrefix))
+          .reduce((sum: number, t: any) => sum + Number(t.amount || 0), 0);
+
+        await replyMessage(
+          `📊 <b>Ringkasan Finansial (${linked.userId})</b>\n\n` +
+          `• 💰 Total Saldo (${accounts.length} akun): <b>Rp ${totalBalance.toLocaleString('id-ID')}</b>\n` +
+          `• 💸 Pengeluaran Bulan Ini: <b>Rp ${monthExpense.toLocaleString('id-ID')}</b>\n` +
+          `• 🧾 Tagihan Belum Lunas: <b>${unpaidCount}</b> (Rp ${unpaidTotal.toLocaleString('id-ID')})\n\n` +
+          `<i>Ketik /tagihan untuk detail tagihan atau buka <a href="${appBaseUrl}">Portal Uang</a>.</i>`
+        );
         return res.status(200).json({ ok: true });
       }
 
@@ -4056,15 +4791,15 @@ Berikan panduan pelunasan langkah demi langkah yang jelas dengan simulasi matema
   // Start Cron Jobs
   cron.schedule('* * * * *', async () => {
     try {
-      const now = new Date();
-      // Adjust to UTC+7 (WIB) manually for local time matching if needed
-      // Actually we'll just check based on the local time of the server (which is running the cron)
-      // Usually users will input HH:mm
-      const currentHours = String(now.getHours()).padStart(2, '0');
-      const currentMinutes = String(now.getMinutes()).padStart(2, '0');
-      const currentTime = `${currentHours}:${currentMinutes}`;
+      const wibFormatter = new Intl.DateTimeFormat('en-GB', {
+        timeZone: 'Asia/Jakarta',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+      });
+      const currentTime = wibFormatter.format(new Date());
 
-      const usersRes = await pool.query("SELECT data FROM app_state WHERE id != 'global_settings'");
+      const usersRes = await pool.query("SELECT id, data FROM app_state WHERE id LIKE '%@%' AND id NOT LIKE 'user_profile_%'");
       const botInfo = await getTelegramBotInfo();
 
       if (!botInfo.token) return;
@@ -4113,6 +4848,29 @@ Berikan panduan pelunasan langkah demi langkah yang jelas dengan simulasi matema
 
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`Portal Uang server running on http://0.0.0.0:${PORT}`);
+
+    // Auto-sync Telegram commands & webhook on boot when TELEGRAM_WEBHOOK_URL or public HTTPS APP_URL is set
+    const tgToken = (process.env.TELEGRAM_BOT_TOKEN || '').trim();
+    const rawWebhookEnv = (process.env.TELEGRAM_WEBHOOK_URL || '').trim().replace(/\/+$/, '');
+    const rawAppUrl = (process.env.APP_URL || '').trim().replace(/\/+$/, '');
+    if (tgToken) {
+      const publicWebhook =
+        rawWebhookEnv && rawWebhookEnv.startsWith('https://') && !rawWebhookEnv.includes('localhost')
+          ? rawWebhookEnv
+          : rawAppUrl &&
+            rawAppUrl.startsWith('https://') &&
+            !rawAppUrl.includes('MY_APP_URL') &&
+            !rawAppUrl.includes('localhost')
+          ? `${rawAppUrl}/api/telegram/webhook`
+          : undefined;
+      syncTelegramBotSetup(tgToken, publicWebhook)
+        .then((wh) => {
+          console.log(`[Telegram] Commands synced${wh?.url ? ` & webhook active: ${wh.url}` : ''}`);
+        })
+        .catch((err) => {
+          console.warn('[Telegram] Startup sync note:', err?.message || err);
+        });
+    }
   });
 }
 
